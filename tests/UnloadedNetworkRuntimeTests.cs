@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Reflection.Emit;
 using System.IO;
 using RunicStorageNetwork;
 using UnityEngine;
@@ -28,11 +29,19 @@ namespace UnityEngine {
 namespace HarmonyLib {
  public enum MethodType { Normal }
  public static class Priority {public const int First=0,Last=1;}
- public class HarmonyMethod {public int priority;public HarmonyMethod(Type t,string n){}}
+ public class HarmonyMethod {public int priority;internal MethodInfo Method;public HarmonyMethod(Type t,string n){Method=t.GetMethod(n,BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Static);}}
+ public class CodeInstruction {public OpCode opcode;public object operand;public readonly List<Label> labels=new List<Label>();public readonly List<object> blocks=new List<object>();public CodeInstruction(OpCode code,object value=null){opcode=code;operand=value;}}
  public class Harmony {
   public static int Lookups,Attempts,FailAt;public static readonly List<string> Owners=new List<string>();readonly string id;
-  public Harmony(string id){this.id=id;}public void Patch(MethodInfo m,HarmonyMethod prefix=null,HarmonyMethod postfix=null){Owners.Add(id);if(++Attempts==FailAt)throw new InvalidOperationException("simulated patch failure");}
-  public void UnpatchSelf(){Owners.RemoveAll(owner=>owner==id);}
+  internal static readonly List<(string Owner,MethodInfo Target,HarmonyMethod Prefix,HarmonyMethod Transpiler)> Bindings=new List<(string,MethodInfo,HarmonyMethod,HarmonyMethod)>();
+  public Harmony(string id){this.id=id;}public void Patch(MethodInfo m,HarmonyMethod prefix=null,HarmonyMethod postfix=null,HarmonyMethod transpiler=null){Owners.Add(id);Bindings.Add((id,m,prefix,transpiler));if(++Attempts==FailAt)throw new InvalidOperationException("simulated patch failure");}
+  public void UnpatchSelf(){Owners.RemoveAll(owner=>owner==id);Bindings.RemoveAll(b=>b.Owner==id);}
+  internal static void Prefix(Type type,string method,object arg){foreach(var b in Bindings.Where(b=>b.Target.DeclaringType==type&&b.Target.Name==method&&b.Prefix!=null).ToArray())b.Prefix.Method.Invoke(null,new[]{arg});}
+  internal static void AreaReset(ZNetView view){
+   IEnumerable<CodeInstruction> code=new[]{new CodeInstruction(OpCodes.Callvirt,typeof(ZNetView).GetMethod("ResetZDO"))};
+   foreach(var b in Bindings.Where(b=>b.Target.DeclaringType==typeof(ZNetScene)&&b.Target.Name=="RemoveObjects"&&b.Transpiler!=null))code=(IEnumerable<CodeInstruction>)b.Transpiler.Method.Invoke(null,new object[]{code});
+   var reset=(MethodInfo)code.Single().operand;reset.Invoke(reset.IsStatic?null:view,reset.IsStatic?new object[]{view}:null);
+  }
  }
  public static class AccessTools {public static MethodInfo Method(Type t,string n){Harmony.Lookups++;return t.GetMethod(n,BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Instance|BindingFlags.Static);}public static MethodInfo Method(Type t,string n,Type[] a){Harmony.Lookups++;return t.GetMethod(n,BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Instance|BindingFlags.Static,null,a,null);}}
 }
@@ -53,16 +62,23 @@ class ZDO {
  public void Set(int key,int value){if(key==ZDOVars.s_inUse)InUse=value;DataRevision++;}
  public void IncreaseDataRevision(){}public void Deserialize(ZPackage p){}public void SetOwnerInternal(long owner){Owner=owner;}
 }
-class ZDOMan {public static ZDOMan instance;internal Dictionary<ZDOID,ZDO> m_objectsByID=new Dictionary<ZDOID,ZDO>();internal List<(long Peer,ZDOID Id)> Sent=new List<(long,ZDOID)>();public void ForceSendZDO(long peer,ZDOID id)=>Sent.Add((peer,id));public void ForceSendZDO(ZDOID id)=>Sent.Add((Transport.Server,id));public void AddToSector(ZDO z){}public void HandleDestroyedZDO(ZDOID id){}public void RemovePeer(ZNetPeer peer){}}
+class ZDOMan {public static ZDOMan instance;internal Dictionary<ZDOID,ZDO> m_objectsByID=new Dictionary<ZDOID,ZDO>();internal List<(long Peer,ZDOID Id)> Sent=new List<(long,ZDOID)>();public void ForceSendZDO(long peer,ZDOID id)=>Sent.Add((peer,id));public void ForceSendZDO(ZDOID id)=>Sent.Add((Transport.Server,id));public void AddToSector(ZDO z){}public void HandleDestroyedZDO(ZDOID id){HarmonyLib.Harmony.Prefix(typeof(ZDOMan),nameof(HandleDestroyedZDO),id);if(ZNetScene.instance.Live.TryGetValue(id,out var live)){live.GetComponent<ZNetView>().ResetZDO();ZNetScene.instance.Live.Remove(id);UnityEngine.Object.Destroy(live);}m_objectsByID.Remove(id);}public void RemovePeer(ZNetPeer peer){}}
 class ZNetPeer {public long m_uid;}
 class ZNet:UnityEngine.Object {public static ZNet instance;public static bool m_loadError;internal bool Server=true;internal HashSet<long> Peers=new HashSet<long>{17};public ZNetPeer GetPeer(long id)=>Peers.Contains(id)?new ZNetPeer{m_uid=id}:null;public bool IsServer()=>Server;public static long GetUID()=>instance.Server?7:17;public void Start(){}}
-class ZNetView:MonoBehaviour {internal ZDO m_zdo;public ZDO GetZDO()=>m_zdo;public bool IsOwner()=>m_zdo.Owner==ZNet.GetUID();public void Awake(){}public void ResetZDO(){}}
+class ZNetView:MonoBehaviour {internal ZDO m_zdo;public ZDO GetZDO()=>m_zdo;public bool IsOwner()=>m_zdo.Owner==ZNet.GetUID();public void Awake(){}public void ResetZDO(){HarmonyLib.Harmony.Prefix(typeof(ZNetView),nameof(ResetZDO),this);m_zdo=null;}}
 class Player:UnityEngine.Object {public static Player m_localPlayer;internal ZDOID Id;public ZDOID GetZDOID()=>Id;public long GetPlayerID()=>1;}
 class ZNetScene:UnityEngine.Object {
  public static ZNetScene instance;public List<GameObject> m_prefabs=new List<GameObject>();public Dictionary<ZDOID,GameObject> Live=new Dictionary<ZDOID,GameObject>();
  public GameObject FindInstance(ZDOID id)=>Live.TryGetValue(id,out var g)?g:null;
  public bool AreaLoaded=true;public bool IsAreaReady(Vector3 p)=>AreaLoaded;
- public void Awake(){}public void OnDestroy(){}public void RemoveObjects(List<ZDO> currentNearObjects){}
+ public void Awake(){}public void OnDestroy(){}
+ public void RemoveObjects(List<ZDO> currentNearObjects,List<ZDO> currentDistantObjects){
+  HarmonyLib.Harmony.Prefix(typeof(ZNetScene),nameof(RemoveObjects),currentNearObjects);
+  foreach(var entry in Live.ToArray()){var view=entry.Value.GetComponent<ZNetView>();if(currentNearObjects.Contains(view.GetZDO())||currentDistantObjects.Contains(view.GetZDO()))continue;HarmonyLib.Harmony.AreaReset(view);Live.Remove(entry.Key);UnityEngine.Object.Destroy(entry.Value);}
+ }
+ // Installed Valheim checks ownership AFTER ResetZDO. Keep that order here:
+ // the regression is a surviving world record despite already returned materials.
+ public void Destroy(GameObject go){var view=go.GetComponent<ZNetView>();var z=view.GetZDO();view.ResetZDO();Live.Remove(z.m_uid);if(z.Owner==ZNet.GetUID())ZDOMan.instance.HandleDestroyedZDO(z.m_uid);UnityEngine.Object.Destroy(go);}
 }
 class Piece:MonoBehaviour {internal ZNetView m_nview;internal long m_creator;}
 class PrivateArea:MonoBehaviour {public float m_radius=32;}
@@ -196,6 +212,25 @@ static class UnloadedNetworkRuntimeTests {
   Test("reserved or busy ownerless source is never claimed",()=>{chest.Owner=0;chest.InUse=1;Start();var c=Request();Check(chest.Owner==0,"busy inventory claimed");chest.InUse=0;Transport.Leases[c.GetInventory()]=new Transport.Lease{Container=c};Call("OwnershipChanged",chest);UnloadedNetworks.Tick();Check(chest.Owner==0,"reserved source claimed");});
   Test("client unload flushes live inventory and releases ownership together",()=>{Client();Deliver(core,chest);chest.Owner=17;var c=LiveChest();c.GetInventory().Bytes=new byte[]{9,8,7};Call("Unloading",R.View(c));Check(chest.Owner==0&&chest.Bytes.SequenceEqual(new byte[]{9,8,7})&&ZDOMan.instance.Sent.Any(s=>s.Id==chest.m_uid),"unload left stale inventory or owner");});
   Test("client unload cannot release an active lease or an open chest",()=>{Client();Deliver(core,chest);chest.Owner=17;var c=LiveChest();Transport.Leases[c.GetInventory()]=new Transport.Lease{Container=c};Call("Unloading",R.View(c));Check(chest.Owner==17,"lease owner released");Transport.Leases.Clear();c.Open=true;Call("Unloading",R.View(c));Check(chest.Owner==17,"open chest owner released");});
+  Test("client demolition deletes the chest record after materials drop",()=>{
+   Client();Deliver(core,chest);chest.Owner=17;var c=LiveChest();int drops=0;
+   for(int attempt=0;attempt<2;attempt++)if(RemoteContext.Data(chest.m_uid)!=null){if(!ZNetScene.instance.FindInstance(chest.m_uid))c=LiveChest();drops++;ZNetScene.instance.Destroy(c.gameObject);}
+   UnloadedNetworks.Tick();
+   Check(drops==1&&RemoteContext.Data(chest.m_uid)==null&&!ZNetScene.instance.FindInstance(chest.m_uid)&&!UnloadedNetworks.FindContainer(chest.m_uid),"demolition returned materials but retained/recreated the chest");
+   Check(chest.Owner==17&&ZDOMan.instance.Sent.Count==0,"destruction released ownership as if the area unloaded");
+  });
+  Test("host destruction removes both live and offline chest references",()=>{Start();Request();var c=LiveChest();ZNetScene.instance.Destroy(c.gameObject);UnloadedNetworks.Tick();Check(RemoteContext.Data(chest.m_uid)==null&&!UnloadedNetworks.FindContainer(chest.m_uid),"destroyed host chest remained in the network");});
+  Test("confirmed remote destruction cannot save or requeue the chest",()=>{Client();Deliver(core,chest);chest.Owner=17;LiveChest();ZDOMan.instance.HandleDestroyedZDO(chest.m_uid);UnloadedNetworks.Tick();Check(chest.Owner==17&&ZDOMan.instance.Sent.Count==0&&RemoteContext.Data(chest.m_uid)==null&&!UnloadedNetworks.FindContainer(chest.m_uid),"remote destruction was treated as an unload");});
+  Test("area unload still saves and hands off a live client chest",()=>{Client();Deliver(core,chest);chest.Owner=17;var c=LiveChest();c.GetInventory().Bytes=new byte[]{5,6,7};ZNetScene.instance.RemoveObjects(new List<ZDO>(),new List<ZDO>());Check(chest.Owner==0&&chest.Bytes.SequenceEqual(new byte[]{5,6,7})&&RemoteContext.Data(chest.m_uid)!=null&&!R.Valid(R.View(c))&&ZDOMan.instance.Sent.Any(s=>s.Id==chest.m_uid),"ordinary area unload lost its save/handoff");});
+  Test("area unload pins a leased live chest",()=>{Client();Deliver(core,chest);chest.Owner=17;var c=LiveChest();Transport.Leases[c.GetInventory()]=new Transport.Lease{Container=c};ZNetScene.instance.RemoveObjects(new List<ZDO>(),new List<ZDO>());Check(ZNetScene.instance.FindInstance(chest.m_uid)==c.gameObject&&R.Valid(R.View(c))&&chest.Owner==17&&ZDOMan.instance.Sent.Count==0,"active lease unloaded or lost ownership");});
+  Test("unload patch is scoped to area removal and preserves instruction metadata",()=>{
+   Start();Check(!HarmonyLib.Harmony.Bindings.Any(b=>b.Target.DeclaringType==typeof(ZNetView)&&b.Target.Name=="ResetZDO"),"global reset hook also affects destruction");
+   var instruction=new HarmonyLib.CodeInstruction(OpCodes.Callvirt,typeof(ZNetView).GetMethod("ResetZDO"));instruction.labels.Add(default);instruction.blocks.Add(new object());
+   var result=((IEnumerable<HarmonyLib.CodeInstruction>)Call("UnloadIL",new object[]{new[]{instruction}})).Single();
+   Check(ReferenceEquals(result,instruction)&&result.labels.Count==1&&result.blocks.Count==1&&result.opcode==OpCodes.Call&&((MethodInfo)result.operand).Name=="UnloadView","replacement lost branch/exception metadata");
+   Check(Refuses(()=>Call("UnloadIL",new object[]{Array.Empty<HarmonyLib.CodeInstruction>()}))&&Refuses(()=>Call("UnloadIL",new object[]{new[]{new HarmonyLib.CodeInstruction(OpCodes.Callvirt,typeof(ZNetView).GetMethod("ResetZDO")),new HarmonyLib.CodeInstruction(OpCodes.Callvirt,typeof(ZNetView).GetMethod("ResetZDO"))}})),"changed game method accepted an ambiguous unload anchor");
+  });
+  Test("disabled experiment leaves client destruction on the vanilla path",()=>{Plugin.ExperimentalUnloadedNetworks.Value=false;ZNet.instance.Server=false;chest.Owner=17;Start();var c=LiveChest();ZNetScene.instance.Destroy(c.gameObject);Check(RemoteContext.Data(chest.m_uid)==null&&chest.Owner==17&&ZDOMan.instance.Sent.Count==0&&HarmonyLib.Harmony.Bindings.Count==0,"disabled feature altered destruction");});
   Test("forged actor, player and remote point cannot discover storage",()=>{Start();Request();Actor();Query(sender:99);Query(player:2);Query(at:new Vector3(100,0,0));Query(at:new Vector3(float.NaN,0,0));UnloadedMultiplayer.Tick();Check(Transport.Sent.Count==0&&ZDOMan.instance.Sent.Count==0,"unauthorized discovery accepted");});
   Test("catalog from another peer cannot introduce sources",()=>{Client();Receive("unloaded_catalog",99,Catalog(1,0,core,chest));UnloadedMultiplayer.Tick();Check(!UnloadedMultiplayer.Accepted(chest.m_uid),"untrusted catalog accepted");});
   Test("catalog waits for actual native data and requests missing revisions",()=>{Client();chest.DataRevision=5;var packet=Catalog(1,0,core,chest);chest.DataRevision=4;Receive("unloaded_catalog",7,packet);UnloadedMultiplayer.Tick();Check(UnloadedMultiplayer.Preparing&&!UnloadedNetworks.FindContainer(chest.m_uid)&&Transport.Sent.Any(s=>s.Name=="unloaded_missing"),"stale record treated as ready");chest.DataRevision=5;Call("Received",chest);UnloadedNetworks.Tick();Check(!UnloadedMultiplayer.Preparing&&UnloadedNetworks.FindContainer(chest.m_uid),"native update failed to finish discovery");});

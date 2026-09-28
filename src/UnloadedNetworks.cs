@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
+using System.Reflection.Emit;
 using HarmonyLib;
 using UnityEngine;
 
@@ -41,11 +43,11 @@ namespace RunicStorageNetwork {
   internal static bool Demand=>Enabled&&Time.unscaledTime<demandUntil;
   internal static IEnumerable<NetworkMember> Members=>replicas.Values.Where(g=>g).Select(g=>g.GetComponent<NetworkMember>()).Where(m=>m&&m.Valid);
   internal static IEnumerable<Container> Containers=>replicas.Values.Where(g=>g).Select(g=>g.GetComponent<Container>()).Where(c=>c&&R.Valid(R.View(c))&&(!ZNetScene.instance.FindInstance(R.View(c).GetZDO().m_uid)||Transport.Leases.ContainsKey(c.GetInventory())));
-  static void Hook(Harmony h,Type type,string method,string handler,bool prefix=false,Type[] args=null){
+  static void Hook(Harmony h,Type type,string method,string handler,bool prefix=false,Type[] args=null,bool transpiler=false){
    var target=args==null?AccessTools.Method(type,method):AccessTools.Method(type,method,args);
    if(target==null)throw new MissingMethodException(type.Name,method);
    var patch=new HarmonyMethod(typeof(UnloadedNetworks),handler){priority=prefix?Priority.First:Priority.Last};
-   h.Patch(target,prefix:prefix?patch:null,postfix:prefix?null:patch);
+   h.Patch(target,prefix:prefix?patch:null,postfix:prefix||transpiler?null:patch,transpiler:transpiler?patch:null);
   }
   internal static void Install(){
    if(Installed||!Plugin.ExperimentalUnloadedNetworks.Value)return;
@@ -75,7 +77,7 @@ namespace RunicStorageNetwork {
    Hook(h,typeof(ZDO),"SetOwner",nameof(OwnershipChanged));
    Hook(h,typeof(ZDO),"SetOwnerInternal",nameof(OwnershipChanged));
    Hook(h,typeof(ZNetView),"Awake",nameof(Loaded));
-   Hook(h,typeof(ZNetView),"ResetZDO",nameof(Unloading),true);
+   Hook(h,typeof(ZNetScene),"RemoveObjects",nameof(UnloadIL),args:new[]{typeof(List<ZDO>),typeof(List<ZDO>)},transpiler:true);
    Hook(h,typeof(ZNetScene),"RemoveObjects",nameof(PinTransactions),true);
    Hook(h,typeof(Container),"Load",nameof(LoadReplica),true,Type.EmptyTypes);
    Hook(h,typeof(Container),"Save",nameof(SaveReplica),true,Type.EmptyTypes);
@@ -163,6 +165,18 @@ namespace RunicStorageNetwork {
    if(nodeTypes.Contains(z.GetPrefab())||chestTypes.Contains(z.GetPrefab())||wardTypes.Contains(z.GetPrefab())){Record(z);Topology.Dirty();}
    else if(__instance.GetComponent<Container>())Topology.Dirty();
   }
+  static IEnumerable<CodeInstruction> UnloadIL(IEnumerable<CodeInstruction> instructions){
+   // ResetZDO is also used by destruction. Releasing its owner there makes
+   // ZNetScene.Destroy skip DestroyZDO AFTER the building materials have dropped.
+   // Only the area-unload call site may save/release a departing live chest.
+   var reset=AccessTools.Method(typeof(ZNetView),nameof(ZNetView.ResetZDO),Type.EmptyTypes);
+   var unload=AccessTools.Method(typeof(UnloadedNetworks),nameof(UnloadView));
+   var code=instructions.ToList();int count=0;
+   foreach(var i in code)if((i.opcode==OpCodes.Call||i.opcode==OpCodes.Callvirt)&&i.operand is MethodInfo method&&method==reset){i.opcode=OpCodes.Call;i.operand=unload;count++;}
+   if(count!=1)throw new InvalidOperationException("Area unload ResetZDO anchor changed: "+count);
+   return code;
+  }
+  static void UnloadView(ZNetView view){Unloading(view);view.ResetZDO();}
   static void Unloading(ZNetView __instance){
    if(!Enabled||!R.Valid(__instance))return;var id=__instance.GetZDO().m_uid;
    var c=__instance.GetComponent<Container>();

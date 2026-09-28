@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.7
+
+- Fixed chests remaining or reappearing after destruction in multiplayer with experimental distant storage enabled, allowing building materials to be collected repeatedly.
+
 ## 0.8.6
 
 - Fixed the storage window ignoring screen resolution and the game's **Scale GUI** setting. Thanks to [hoxton314](https://github.com/hoxton314) for the contribution.
