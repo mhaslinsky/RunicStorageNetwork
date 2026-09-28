@@ -1,6 +1,6 @@
 # Runic Storage Network
 
-> **0.8.2 experimental local build / экспериментальная локальная сборка**
+> **0.8.3 experimental local build / экспериментальная локальная сборка**
 >
 > Optional unloaded-network support is available in single player. It is **disabled by default** and may cause errors, including inventory problems. Back up the world before testing. In `BepInEx/config/local.runicstoragenetwork.cfg`, set `[Experimental]` → `ExperimentalUnloadedNetworks = true`, then reload the world. Set it back to `false` and reload to return to normal operation. Multiplayer continues to use normal loaded-area networking.
 >

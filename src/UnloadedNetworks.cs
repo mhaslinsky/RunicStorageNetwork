@@ -42,6 +42,7 @@ namespace RunicStorageNetwork {
   }
   internal static void Install(Harmony h){
    Hook(h,typeof(ZNetScene),"Awake",nameof(Bootstrap));
+   Hook(h,typeof(ZNet),"Start",nameof(WorldLoaded));
    Hook(h,typeof(ZNetScene),"OnDestroy",nameof(Shutdown),true);
    Hook(h,typeof(ZDOMan),"AddToSector",nameof(Added));
    Hook(h,typeof(ZDOMan),"HandleDestroyedZDO",nameof(Destroyed),true);
@@ -53,7 +54,7 @@ namespace RunicStorageNetwork {
    Hook(h,typeof(Container),"Save",nameof(SaveReplica),true,Type.EmptyTypes);
    StorageIndex.DemandDriven=()=>Enabled;
    StorageIndex.HasDemand=()=>Demand;
-   StorageIndex.AreaReady=c=>IsReplica(c)||ZNetScene.instance.IsAreaReady(c.transform.position);
+   StorageIndex.AreaReady=SourceReady;
    StorageIndex.ReadFailure=ReadFailure;
    CraftInspection.FindContainer=FindContainer;
   }
@@ -64,12 +65,18 @@ namespace RunicStorageNetwork {
   static void Bootstrap(){
    Shutdown();world=ZDOMan.instance;enabled=Plugin.ExperimentalUnloadedNetworks.Value&&ZNet.IsSinglePlayer;
    if(!enabled){if(Plugin.ExperimentalUnloadedNetworks.Value)Plugin.Info("ExperimentalUnloadedNetworks is restricted to single player; normal networking remains active.");return;}
+   // ZNetScene.Awake runs BEFORE ZNet.Start reads both old and chunked saves.
+   // Only latch the setting here. Index the completed records after that load.
+   Plugin.Info("EXPERIMENTAL unloaded networks enabled (single player); waiting for saved world records. May cause errors. Back up the world before testing.");
+  }
+  static void WorldLoaded(){
+   if(!Enabled||bootstrapped||ZNet.m_loadError)return;
    foreach(var prefab in ZNetScene.instance.m_prefabs)if(prefab){if(prefab.GetComponent<PrivateArea>())wardTypes.Add(prefab.name.GetStableHashCode());if(prefab.GetComponent<Container>())chestTypes.Add(prefab.name.GetStableHashCode());}
-   // Exactly one metadata pass during scene initialization; no inventories are
+   // Exactly one metadata pass AFTER the world load; no inventories are
    // deserialized here. Includes records which have never had a local instance.
    foreach(var z in R.Get<Dictionary<ZDOID,ZDO>>(world,"m_objectsByID").Values)Record(z);
    bootstrapped=true;Topology.Dirty();
-   Plugin.Info("EXPERIMENTAL unloaded networks enabled (single player): "+nodes.Count+" nodes, "+chests.Count+" storage records (eligibility checked on access). May cause errors. Back up the world before testing.");
+   Plugin.Info("Experimental unloaded network index ready: "+nodes.Count+" nodes, "+chests.Count+" storage records (eligibility checked on access).");
   }
   static void Added(ZDO zdo){if(Enabled&&bootstrapped)Record(zdo);}
   static void Record(ZDO z){
@@ -137,7 +144,11 @@ namespace RunicStorageNetwork {
     var center=ZoneSystem.GetZone(new Vector3((float)node.Position.X,(float)node.Position.Y,(float)node.Position.Z));int radius=Mathf.CeilToInt((float)node.Storage/64)+1;
     for(int x=-radius;x<=radius;x++)for(int y=-radius;y<=radius;y++)if(chestSectors.TryGetValue(new Vector2s(center.x+x,center.y+y),out var ids))foreach(var id in ids){
      var z=chests[id];var prefab=RemoteContext.Prefab(z);if(!prefab||!ContainerPolicy.Eligible(prefab.name)||z.GetLong(ZDOVars.s_creator,0)==0||node.Position.Distance2(Topology.Position(z.GetPosition()))>node.Storage*node.Storage)continue;
-     requestedChests.Add(id);if(!ZNetScene.instance.FindInstance(id))Enqueue(id);
+     requestedChests.Add(id);
+     // Retained live instances also need a single-player owner after their zone
+     // unloads. Keep their real inventory; an offline clone would duplicate it.
+     if(z.GetOwner()!=ZNet.GetUID())z.SetOwner(ZNet.GetUID());
+     if(!ZNetScene.instance.FindInstance(id))Enqueue(id);
     }
    }
   }
@@ -181,8 +192,17 @@ namespace RunicStorageNetwork {
    if(!IsReplica(c))return false;var r=c.GetComponent<UnloadedReplica>();
    if(!r.ReportedFailure||r.FailedRevision!=r.Data.DataRevision){r.ReportedFailure=true;r.FailedRevision=r.Data.DataRevision;Plugin.Error("experimental inventory unavailable "+R.Key(r.Data.m_uid),e);}return true;
   }
-  internal static bool CanUseUnloaded(Container c)=>IsReplica(c)||(Enabled&&c&&Transport.Leases.ContainsKey(c.GetInventory()));
-  internal static bool KeepOwner(ZDO z,long owner)=>Enabled&&owner==0&&replicas.ContainsKey(z.m_uid)&&chests.ContainsKey(z.m_uid);
+  internal static bool CanUseUnloaded(Container c){
+   if(!Enabled||!c||!R.Valid(R.View(c))||c.GetInventory()==null)return false;
+   var z=R.View(c).GetZDO();
+   if(!chests.TryGetValue(z.m_uid,out var saved)||!ReferenceEquals(saved,z)||!ReferenceEquals(RemoteContext.Data(z.m_uid),z))return false;
+   // A live Container may outlast its zone (including containers retained by
+   // another mod). Area readiness describes the entire zone, not this source.
+   // Access/OwnerSource still enforce eligibility, placement, wards and leases.
+   return IsReplica(c)||(ZNetScene.instance&&ZNetScene.instance.FindInstance(z.m_uid)==c.gameObject);
+  }
+  internal static bool SourceReady(Container c)=>CanUseUnloaded(c)||(c&&ZNetScene.instance&&ZNetScene.instance.IsAreaReady(c.transform.position));
+  internal static bool KeepOwner(ZDO z,long owner)=>Enabled&&owner==0&&requestedChests.Contains(z.m_uid)&&chests.TryGetValue(z.m_uid,out var saved)&&ReferenceEquals(saved,z);
   internal static Core FindCore(ZDOID id){if(Enabled&&replicas.TryGetValue(id,out var go)&&go)return go.GetComponent<Core>();return null;}
   internal static Container FindContainer(ZDOID id){
    Container proxy=null;if(Enabled&&replicas.TryGetValue(id,out var go)&&go)proxy=go.GetComponent<Container>();

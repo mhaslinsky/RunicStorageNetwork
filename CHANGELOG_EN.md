@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.3
+
+- Fixed the experimental mode reporting connected chests as unloaded and blocking resource access after moving away from the core.
+- Fixed distant networks being missed when entering a saved world without visiting the core first.
+
 ## 0.8.2
 
 - Added an experimental single-player option to use networks outside the player's loaded area, including after entering the world far from the core.

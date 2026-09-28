@@ -47,12 +47,12 @@ class ZDO {
  public void Set(int key,byte[] bytes){Bytes=bytes;DataRevision++;}
 }
 class ZDOMan {public static ZDOMan instance;internal Dictionary<ZDOID,ZDO> m_objectsByID=new Dictionary<ZDOID,ZDO>();}
-class ZNet:UnityEngine.Object {public static ZNet instance;public static bool IsSinglePlayer=true;public static long GetUID()=>7;}
+class ZNet:UnityEngine.Object {public static ZNet instance;public static bool IsSinglePlayer=true,m_loadError;public static long GetUID()=>7;}
 class ZNetView:MonoBehaviour {internal ZDO m_zdo;public ZDO GetZDO()=>m_zdo;}
 class ZNetScene:UnityEngine.Object {
  public static ZNetScene instance;public List<GameObject> m_prefabs=new List<GameObject>();public Dictionary<ZDOID,GameObject> Live=new Dictionary<ZDOID,GameObject>();
  public GameObject FindInstance(ZDOID id)=>Live.TryGetValue(id,out var g)?g:null;
- public bool IsAreaReady(Vector3 p)=>true;
+ public bool AreaLoaded=true;public bool IsAreaReady(Vector3 p)=>AreaLoaded;
 }
 class Piece:MonoBehaviour {internal ZNetView m_nview;internal long m_creator;}
 class PrivateArea:MonoBehaviour {public float m_radius=32;}
@@ -99,11 +99,12 @@ static class UnloadedNetworkRuntimeTests {
  static GameObject Prefab<T>(string name) where T:Component,new(){var g=new GameObject(name);g.SetActive(false);g.AddComponent<T>();ZNetScene.instance.m_prefabs.Add(g);return g;}
  static ZDO Record(string name,int id,float x){var z=new ZDO{m_uid=new ZDOID{Id=id},Prefab=name.GetStableHashCode(),Position=new Vector3(x,0,0)};ZDOMan.instance.m_objectsByID[z.m_uid]=z;return z;}
  static void Setup(){
-  Call("Shutdown");ZNet.instance=new ZNet();ZNet.IsSinglePlayer=true;ZDOMan.instance=new ZDOMan();ZNetScene.instance=new ZNetScene();Plugin.ExperimentalUnloadedNetworks.Value=true;Plugin.Messages.Clear();Transport.Leases.Clear();Core.Live.Clear();Topology.Graph=new Graph();Topology.Changes=0;Time.unscaledTime=0;Inventory.DropUnknown=false;
+  Call("Shutdown");ZNet.instance=new ZNet();ZNet.IsSinglePlayer=true;ZNet.m_loadError=false;ZDOMan.instance=new ZDOMan();ZNetScene.instance=new ZNetScene();Plugin.ExperimentalUnloadedNetworks.Value=true;Plugin.Messages.Clear();Transport.Leases.Clear();Core.Live.Clear();Topology.Graph=new Graph();Topology.Changes=0;Time.unscaledTime=0;Inventory.DropUnknown=false;
   Prefab<Core>("RSN_NetworkCore");Prefab<NetworkMember>("RSN_RunicRelay");chestPrefab=Prefab<Container>("ModdedDrawer");Prefab<Container>("ExcludedChest");
   core=Record("RSN_NetworkCore",1,0);chest=Record("ModdedDrawer",2,5);chest.Bytes=new byte[]{109,3,7,8};
  }
- static void Start(){Call("Bootstrap");UnloadedNetworks.Prepare();for(int i=0;i<20;i++)UnloadedNetworks.Tick();}
+ static void Start(){Call("Bootstrap");Call("WorldLoaded");UnloadedNetworks.Prepare();for(int i=0;i<20;i++)UnloadedNetworks.Tick();}
+ static Container LiveChest(){var g=new GameObject("ModdedDrawer");g.SetActive(false);g.AddComponent<ZNetView>().m_zdo=chest;var c=g.AddComponent<Container>();c.m_inventory=new Inventory("",null,4,2);ZNetScene.instance.Live[chest.m_uid]=g;return c;}
  static Container Request(){
   var c=UnloadedNetworks.FindCore(core.m_uid);Topology.Graph.Nodes["1"]=new Node{Id="1",Network="network",Position=Topology.Position(core.Position)};Topology.Graph.Hops["1"]=0;
   UnloadedNetworks.Request(c);for(int i=0;i<20;i++)UnloadedNetworks.Tick();return UnloadedNetworks.FindContainer(chest.m_uid);
@@ -115,6 +116,9 @@ static class UnloadedNetworkRuntimeTests {
   Test("disabled setting creates no adapters",()=>{Plugin.ExperimentalUnloadedNetworks.Value=false;Call("Bootstrap");UnloadedNetworks.Prepare();UnloadedNetworks.Tick();Check(!UnloadedNetworks.Enabled&&Core.Live.Count==0,"disabled mode changed world");});
   Test("multiplayer cannot enable offline writes",()=>{ZNet.IsSinglePlayer=false;Call("Bootstrap");Check(!UnloadedNetworks.Enabled,"multiplayer enabled");});
   Test("cold start finds core without any live instances",()=>{Start();Check(UnloadedNetworks.FindCore(core.m_uid)&&ZNetScene.instance.Live.Count==0,"requires loaded core");Check(Core.Live.All(c=>!c.gameObject.activeSelf),"active adapter");});
+  Test("chunked save arriving after scene Awake is indexed without visiting core",()=>{ZDOMan.instance.m_objectsByID.Clear();Call("Bootstrap");Check(!UnloadedNetworks.Prepare(),"indexed before save loaded");ZDOMan.instance.m_objectsByID[core.m_uid]=core;ZDOMan.instance.m_objectsByID[chest.m_uid]=chest;Call("WorldLoaded");UnloadedNetworks.Prepare();for(int i=0;i<20;i++)UnloadedNetworks.Tick();Check(UnloadedNetworks.FindCore(core.m_uid)&&Request()&&ZNetScene.instance.Live.Count==0,"late saved records missed");});
+  Test("completed world index is not rebuilt on repeated notification",()=>{Start();int before=Topology.Changes;Call("WorldLoaded");Check(Topology.Changes==before,"repeated full scan");});
+  Test("failed world load cannot index a partial save",()=>{ZNet.m_loadError=true;Start();Check(!UnloadedNetworks.Prepare()&&!UnloadedNetworks.FindCore(core.m_uid),"indexed failed load");});
   Test("startup indexes metadata without eagerly creating storage",()=>{Start();Check(!UnloadedNetworks.FindContainer(chest.m_uid),"eager storage load");});
   Test("modded standard containers share the normal eligibility filter",()=>{Start();var c=Request();Check(c&&c.gameObject.name=="ModdedDrawer"&&!c.gameObject.activeSelf,"modded storage excluded");});
   Test("denied container is not connected",()=>{chest.Prefab="ExcludedChest".GetStableHashCode();Start();Check(!Request(),"excluded storage bypassed");});
@@ -129,6 +133,10 @@ static class UnloadedNetworkRuntimeTests {
   Test("unpaid conflict can release without overwriting saved items",()=>{Start();var c=Request();Load(c);chest.Bytes=new byte[]{109,1,4};c.GetInventory().Bytes=new byte[]{109,2,7};Check(Refuses(()=>Call("SaveReplica",c))&&UnloadedNetworks.DiscardUnpaid(c,false),"failed write stayed locked");Load(c);Check(c.GetInventory().Bytes.SequenceEqual(chest.Bytes),"discarded inventory was reused");});
   Test("saved debit cannot be discarded even before acknowledgement",()=>{Start();var c=Request();Load(c);c.GetInventory().Bytes=new byte[]{109,2,7};Call("SaveReplica",c);Check(!UnloadedNetworks.DiscardUnpaid(c,false)&&!UnloadedNetworks.DiscardUnpaid(c,true),"persisted debit skipped rollback");});
   Test("loaded chest takes over without duplicate source",()=>{Start();var proxy=Request();var live=new GameObject("ModdedDrawer");live.SetActive(false);live.AddComponent<ZNetView>().m_zdo=chest;var c=live.AddComponent<Container>();c.m_inventory=new Inventory("",null,4,2);ZNetScene.instance.Live[chest.m_uid]=live;Check(UnloadedNetworks.FindContainer(chest.m_uid)==c&&!UnloadedNetworks.Containers.Contains(proxy),"duplicate adapters");});
+  Test("retained live chest remains usable after its zone unloads",()=>{Start();var live=LiveChest();ZNetScene.instance.AreaLoaded=false;chest.Owner=0;Check(Request()==live&&UnloadedNetworks.CanUseUnloaded(live)&&UnloadedNetworks.SourceReady(live),"live chest rejected with unconfirmed loaded area");Check(chest.Owner==ZNet.GetUID()&&UnloadedNetworks.KeepOwner(chest,0),"retained source lost single-player owner");Check(!UnloadedNetworks.Containers.Any(),"duplicated retained inventory");});
+  Test("untracked live chest cannot bypass readiness",()=>{Start();var live=LiveChest();var unknown=new ZDO{m_uid=new ZDOID{Id=99},Prefab=chest.Prefab};live.m_nview=null;live.GetComponent<ZNetView>().m_zdo=unknown;ZNetScene.instance.Live[unknown.m_uid]=live.gameObject;ZDOMan.instance.m_objectsByID[unknown.m_uid]=unknown;ZNetScene.instance.AreaLoaded=false;Check(!UnloadedNetworks.CanUseUnloaded(live)&&!UnloadedNetworks.SourceReady(live),"untracked source bypassed readiness");});
+  Test("stale live instance cannot borrow replacement record with same id",()=>{Start();var live=LiveChest();ZNetScene.instance.AreaLoaded=false;ZDOMan.instance.m_objectsByID[chest.m_uid]=new ZDO{m_uid=chest.m_uid,Prefab=chest.Prefab};Check(!UnloadedNetworks.CanUseUnloaded(live),"stale instance accepted");});
+  Test("disabled experiment keeps normal area readiness for live sources",()=>{Plugin.ExperimentalUnloadedNetworks.Value=false;Call("Bootstrap");Call("WorldLoaded");var live=LiveChest();ZNetScene.instance.AreaLoaded=false;Check(!UnloadedNetworks.CanUseUnloaded(live)&&!UnloadedNetworks.SourceReady(live),"disabled behavior changed");ZNetScene.instance.AreaLoaded=true;Check(UnloadedNetworks.SourceReady(live),"normal loaded source rejected");});
   Test("in-flight lease retains original offline inventory",()=>{Start();var proxy=Request();Transport.Leases[proxy.GetInventory()]=new Transport.Lease{Container=proxy};ZNetScene.instance.Live[chest.m_uid]=chestPrefab;Check(UnloadedNetworks.FindContainer(chest.m_uid)==proxy,"lease source switched");});
   Test("active real chest lease is pinned until release",()=>{Start();var live=new GameObject("ModdedDrawer");live.SetActive(false);live.AddComponent<ZNetView>().m_zdo=chest;var c=live.AddComponent<Container>();var inv=new Inventory("",null,4,2);Transport.Leases[inv]=new Transport.Lease{Container=c};var list=new List<ZDO>();Call("PinTransactions",list);Check(list.Count==1&&list[0]==chest,"leased live source unloaded");Transport.Leases.Clear();list.Clear();Call("PinTransactions",list);Check(list.Count==0,"pin survived release");});
   Test("destroying core removes retained reference",()=>{Start();var c=UnloadedNetworks.FindCore(core.m_uid);Call("Destroyed",core.m_uid);Check(!UnloadedNetworks.FindCore(core.m_uid)&&!R.Valid(R.View(c)),"ghost core survived");});
