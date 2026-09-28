@@ -114,6 +114,7 @@ namespace RunicStorageNetwork {
    Actions.Tick();
   }
   void Register(){
+   UnloadedMultiplayer.Register((name,handler)=>rpc.Register<ZPackage>("RSN_"+name,(sender,p)=>{try{handler(sender,p);}catch(Exception e){Plugin.Error("RPC "+name,e);}}));
    foreach(var pair in new Dictionary<string,Action<long,ZPackage>>{{"request",Request},{"inspect",CraftInspection.Request},{"inspected",CraftInspection.Response},{"progress",Progress},{"offer",Offer},{"claim",Claim},{"accept",Accept},{"cancelquote",CancelQuote},{"prepare",Prepare},{"prepared",Prepared},{"commit",Commit},{"paid",Paid},{"ready",Ready},{"terminalready",TerminalTransfer.Ready},{"finish",Finish},{"release",Release},{"released",Released},{"fresh",Fresh},{"refused",Refused}}){var handler=pair.Value;rpc.Register<ZPackage>("RSN_"+pair.Key,(sender,p)=>{try{handler(sender,p);}catch(Exception e){Plugin.Error("RPC "+pair.Key,e);}});}
   }
   internal static void Send(long peer,string name,ZPackage package){if(peer==0)throw new InvalidOperationException("No coordinator");ZRoutedRpc.instance.InvokeRoutedRPC(peer,"RSN_"+name,package);}

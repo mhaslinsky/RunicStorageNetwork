@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.4
+
+- Added experimental multiplayer support for distant networks: use connected storage even when no player is near the core or chests. Enable the option on the server and all clients.
+- Distant resource counts update while the network is in use, including changes made by other players.
+- Distant chests can become available again after their previous owner leaves the server, provided no unfinished resource transaction is holding them.
+
 ## 0.8.3
 
 - Fixed the experimental mode reporting connected chests as unloaded and blocking resource access after moving away from the core.

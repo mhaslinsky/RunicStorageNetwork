@@ -153,7 +153,7 @@ namespace RunicStorageNetwork {
    reason="access denied";if(!Ward(z.GetPosition()))return false;reason="available";return true;
   }
   internal bool OwnerSource(Container c,out string reason,bool ownLease=false){
-   reason="unloaded";var v=R.View(c);if(!c||!R.Valid(v)||!v.IsOwner())return false;
+   reason="unloaded";var v=R.View(c);if(!c||!R.Valid(v)||!v.IsOwner()||!UnloadedNetworks.CanOwn(c))return false;
    reason=ContainerPolicy.Reason(R.Id(c.gameObject));if(reason!=null)return false;
    reason="not player built";var piece=c.GetComponent<Piece>();if(!piece||!piece.IsPlacedByPlayer())return false;
    reason="unconfirmed loaded area";if(!UnloadedNetworks.CanUseUnloaded(c)&&!ZNetScene.instance.IsAreaReady(c.transform.position))return false;

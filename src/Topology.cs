@@ -111,6 +111,7 @@ namespace RunicStorageNetwork {
   }
   internal static List<Container> Pool(Core core){Refresh();var n=core?core.GetComponent<NetworkMember>():null;return n&&pools.TryGetValue(n.Network,out var list)?list:new List<Container>();}
   internal static Core Choose(Vector3 point,long actor){
+   UnloadedMultiplayer.Touch(point,actor);
    if(!Plugin.Enabled)return null;Refresh();if(selections.TryGetValue(actor,out var cached)&&cached.Point==point&&Time.unscaledTime<cached.Until&&cached.Core&&cached.Core.Valid){UnloadedNetworks.Request(cached.Core);return cached.Core;}
    var graph=ForActor(actor);string net=graph.Choose(Position(point),n=>true);var core=net!=null&&graph.Roots.TryGetValue(net,out var root)?Member(root)?.GetComponent<Core>():null;selections[actor]=new Selection{Point=point,Until=Time.unscaledTime+.25f,Core=core};UnloadedNetworks.Request(core);return core;
   }
@@ -159,6 +160,7 @@ namespace RunicStorageNetwork {
   void Update(){
    if(world!=ZNet.instance){Topology.Clear();StorageIndex.Clear();world=ZNet.instance;}
    if(!world||!ZNetScene.instance)return;
+   UnloadedMultiplayer.Tick();
    if(UnloadedNetworks.Enabled)UnloadedNetworks.Tick();else {Topology.CheckAccessRevision();Topology.Refresh();}
 
    StorageIndex.Tick();RecipeIndex.Background();

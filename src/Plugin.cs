@@ -12,7 +12,7 @@ using Jotunn.Utils;
 using UnityEngine;
 
 namespace RunicStorageNetwork {
- [BepInPlugin(Guid, "Runic Storage Network", "0.8.3")]
+ [BepInPlugin(Guid, "Runic Storage Network", "0.8.4")]
  [BepInDependency("com.jotunn.jotunn", "2.30.2")]
  [BepInDependency("com.maxsch.valheim.MultiUserChest",BepInDependency.DependencyFlags.SoftDependency)]
  [NetworkCompatibility(CompatibilityLevel.EveryoneMustHaveMod,VersionStrictness.Patch)]
@@ -40,7 +40,7 @@ namespace RunicStorageNetwork {
   void Awake(){
    Log=Logger;
    Supply=Config.Bind("Network","SupplyEnabled",true,new ConfigDescription("Enable supply; registered building remains available.",null,new ConfigurationManagerAttributes{IsAdminOnly=true}));
-   ExperimentalUnloadedNetworks=Config.Bind("Experimental","ExperimentalUnloadedNetworks",false,"EXPERIMENTAL: allow networks and eligible storage to work outside the player's loaded area. Single player only. May cause errors, including inventory problems. Back up your world before testing. Requires reloading the world. Default: disabled. / ЭКСПЕРИМЕНТАЛЬНО: работа сети вне области загрузки игрока, только одиночная игра. Возможны ошибки, в том числе с инвентарём. Сделайте резервную копию мира. Требуется перезайти в мир.");
+   ExperimentalUnloadedNetworks=Config.Bind("Experimental","ExperimentalUnloadedNetworks",false,"EXPERIMENTAL: allow networks and eligible storage to work outside the player's loaded area. For multiplayer, enable on the server and all clients using the same mod version. May cause errors, including inventory problems. Back up your world before testing. Restart the server and rejoin after changing. Default: disabled. / ЭКСПЕРИМЕНТАЛЬНО: работа сети вне области загрузки игрока. Для мультиплеера включите на сервере и у всех игроков с одинаковой версией мода. Возможны ошибки, в том числе с инвентарём. Сделайте резервную копию мира. После изменения перезапустите сервер и перезайдите в мир. По умолчанию выключено.");
    StorageRadius=Number("StorageRadius",20,1,100);SupplyRadius=Number("SupplyRadius",20,1,100);Rescan=Number("RescanIntervalSeconds",2,0.5f,30);
    RelayLink=Number("RelayLinkRange",50,1,100);RelayStorage=Number("RelayStorageRadius",20,1,100);RelaySupply=Number("RelaySupplyRadius",20,1,100);
    RelayLink.SettingChanged+=SettingsChanged;RelayStorage.SettingChanged+=SettingsChanged;RelaySupply.SettingChanged+=SettingsChanged;
@@ -54,7 +54,7 @@ namespace RunicStorageNetwork {
    foreach(var entry in new[]{AllowedBuildTools,DeniedBuildTools,DeniedPieceComponents})entry.SettingChanged+=BuildToolsChanged;
    DebugLogging=Config.Bind("Diagnostics","DebugLogging",false,"Detailed transaction diagnostics without inventory dumps.");
    Supply.SettingChanged+=SettingsChanged;StorageRadius.SettingChanged+=SettingsChanged;SupplyRadius.SettingChanged+=SettingsChanged;Rescan.SettingChanged+=SettingsChanged;
-   Info("0.8.3 unloaded-network experiment; Valheim="+global::Version.CurrentVersion+" Unity="+Application.unityVersion+" BepInEx="+typeof(BaseUnityPlugin).Assembly.GetName().Version+" Jotunn="+typeof(PieceManager).Assembly.GetName().Version);
+   Info("0.8.4 unloaded-network multiplayer experiment; Valheim="+global::Version.CurrentVersion+" Unity="+Application.unityVersion+" BepInEx="+typeof(BaseUnityPlugin).Assembly.GetName().Version+" Jotunn="+typeof(PieceManager).Assembly.GetName().Version);
    RsnLocalization.Add();
    try {
     string path=Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),"Assets","rsn_core_windows");
