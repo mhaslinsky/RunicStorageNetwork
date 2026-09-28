@@ -52,7 +52,7 @@ The closed book used to build a Storage Codex. Craft it at a level 1 forge after
 
 Materials in your inventory are used first, followed by any missing materials from connected chests. Recipe requirements and crafting station level requirements still apply.
 
-Interact with a Storage Codex to open network storage. Search for an item, choose a quantity and press **Take** to retrieve it into your inventory. Items of different qualities are listed separately; retrieved items keep their original properties. Depositing items through this window is not available.
+Interact with a Storage Codex to open network storage. Search for an item, choose a quantity and press **Take** to retrieve it into your inventory. Items of different qualities are listed separately; retrieved items keep their original properties. Depositing items through this window is not available. The window scales with the render resolution and with the **Scale GUI** setting under Settings → Accessibility, like the game's own windows.
 
 Interact with a core (E with default controls) to give its network an optional name. Leave the field empty to remove the name. Connected cores share one network name. Hover over a connected container to see its network; unnamed networks simply show "Connected to network". Unconnected containers receive no additional line.
 
@@ -119,6 +119,10 @@ Runic Storage Network disables its resource supply when it detects NearbyCraftin
 
 MultiUserChest and Quick Stack Store Sort Trash Restock are optional. The current integrations accept **MultiUserChest 0.6.2** and **Quick Stack 1.4.15**; other versions disable network supply until their integration is updated. With Quick Stack but without MultiUserChest, `AllowAreaStackingInMultiplayerWithoutMUC` must be disabled. These version checks do not guarantee compatibility with every mod combination.
 
+### Thanks for contributing
+
+Thanks to [hoxton314](https://github.com/hoxton314) for contributing to the development of Runic Storage Network, including modded-container support and terminal UI scaling.
+
 ---
 
 ## Русский
@@ -159,7 +163,7 @@ Runic Storage Network объединяет сундуки базы в сеть �
 
 Сначала расходуются материалы при себе, затем — недостающее из сундуков. Требования рецептов и уровни станков сохраняются.
 
-Взаимодействуйте с Кодексом запасов, чтобы открыть хранилище сети. Найдите предмет, выберите количество и нажмите **«Забрать»**, чтобы получить его в инвентарь. Предметы разного качества показаны отдельно и сохраняют свои свойства при получении. Складывание предметов через это окно пока недоступно.
+Взаимодействуйте с Кодексом запасов, чтобы открыть хранилище сети. Найдите предмет, выберите количество и нажмите **«Забрать»**, чтобы получить его в инвентарь. Предметы разного качества показаны отдельно и сохраняют свои свойства при получении. Складывание предметов через это окно пока недоступно. Окно масштабируется вместе с разрешением и настройкой **«Масштаб интерфейса»** в разделе Настройки → Специальные возможности, как и собственные окна игры.
 
 Взаимодействие с ядром (E при стандартном управлении) позволяет задать необязательное название сети. Пустое поле удаляет название. Соединённые ядра используют общее название сети. При наведении на подключённое хранилище показывается его сеть; для безымянной сети — просто «Подключено к сети». У неподключённых хранилищ дополнительной строки нет.
 
@@ -225,3 +229,7 @@ Runic Storage Network объединяет сундуки базы в сеть �
 Runic Storage Network отключает снабжение ресурсами при обнаружении NearbyCrafting, AzuCraftyBoxes, DvergerAutomation, CraftFromContainers или CraftFromChests. Используйте одну систему снабжения из хранилищ.
 
 MultiUserChest и Quick Stack Store Sort Trash Restock необязательны. Текущие интеграции допускают **MultiUserChest 0.6.2** и **Quick Stack 1.4.15**; с другими версиями снабжение отключается до обновления интеграции. При использовании Quick Stack без MultiUserChest параметр `AllowAreaStackingInMultiplayerWithoutMUC` должен быть выключен. Эти проверки версий не гарантируют совместимость с любой комбинацией модов.
+
+### Благодарности
+
+Спасибо [hoxton314](https://github.com/hoxton314) за вклад в развитие Runic Storage Network, в том числе поддержку модовых хранилищ и исправление масштабирования интерфейса терминала.

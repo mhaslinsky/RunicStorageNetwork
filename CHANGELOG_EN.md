@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Fixed the storage window ignoring screen resolution and the game's **Scale GUI** setting. Thanks to [hoxton314](https://github.com/hoxton314) for the contribution.
+
 ## 0.8.5
 
 - Isolated the unloaded-network experiment from normal storage and crafting when disabled.

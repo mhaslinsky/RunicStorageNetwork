@@ -8,6 +8,22 @@ using UnityEngine.UI;
 namespace RunicStorageNetwork {
  internal static class NetworkUiStyle {
   internal static readonly Color Gold=new Color(1f,.79f,.42f),Bronze=new Color(.48f,.37f,.22f);
+  // Valheim gives each GUI screen its own root canvas (Canvas+CanvasScaler+GuiScaler+
+  // GraphicRaycaster) and scales it with the render resolution and the GUI scale setting.
+  // Jotunn's CustomGUIFront is a sibling root canvas without a GuiScaler, so its factor
+  // stays 1. Take the same parent and own the scaling instead of inheriting none.
+  internal static CanvasScaler Screen(string name,int order){
+   var parent=GUIManager.CustomGUIFront?GUIManager.CustomGUIFront.transform.parent:null;
+   if(!parent)throw new InvalidOperationException("Jotunn's custom GUI has no scalable parent");
+   var go=new GameObject(name,typeof(RectTransform),typeof(Canvas),typeof(CanvasScaler),typeof(GraphicRaycaster));
+   go.layer=LayerMask.NameToLayer("UI");go.transform.SetParent(parent,false);go.transform.SetAsLastSibling();
+   var rect=(RectTransform)go.transform;rect.anchorMin=Vector2.zero;rect.anchorMax=Vector2.one;rect.offsetMin=rect.offsetMax=Vector2.zero;
+   var canvas=go.GetComponent<Canvas>();canvas.renderMode=RenderMode.ScreenSpaceOverlay;canvas.overrideSorting=true;canvas.sortingOrder=order;
+   canvas.additionalShaderChannels=AdditionalCanvasShaderChannels.TexCoord1|AdditionalCanvasShaderChannels.Normal|AdditionalCanvasShaderChannels.Tangent;
+   // Matches Jotunn's own canvas, so the panel sprites keep the borders they were tuned for.
+   var scaler=go.GetComponent<CanvasScaler>();scaler.uiScaleMode=CanvasScaler.ScaleMode.ConstantPixelSize;scaler.referencePixelsPerUnit=50;
+   return scaler;
+  }
   internal static GameObject Panel(Transform parent,float width,float height){
    var center=new Vector2(.5f,.5f);
    var panel=GUIManager.Instance.CreateWoodpanel(parent,center,center,Vector2.zero,width,height,false);

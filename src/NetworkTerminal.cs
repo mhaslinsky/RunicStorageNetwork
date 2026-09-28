@@ -12,7 +12,7 @@ namespace RunicStorageNetwork {
   sealed class Entry {internal string Id,Name;internal int Quality,Count;internal ItemDrop Item;internal string Key=>Id+"/"+Quality;}
   sealed class Slot {internal GameObject Object;internal RectTransform Rect;internal Image Icon,Selection;internal Text Count,Quality;internal Button Button;internal UITooltip Tooltip;internal Entry Entry;}
   static NetworkTerminal instance;
-  Core core;StorageCodex accessPoint;Player player;GameObject panel;bool blocked;
+  Core core;StorageCodex accessPoint;Player player;GameObject panel;CanvasScaler scaler;Canvas canvas;float guiScale;bool blocked;
   InputField search,quantity;Text heading,detail,available,carried,status,empty,qualityLabel;Image selectedIcon;Button take,minus,plus,stack;
   ScrollRect scroll;RectTransform content;readonly List<Slot> slots=new List<Slot>();
   List<Entry> entries=new List<Entry>(),filtered=new List<Entry>();Entry selected;
@@ -31,20 +31,22 @@ namespace RunicStorageNetwork {
   internal static void Close(){
    if(!instance)return;TerminalTransfer.Cancel();
    if(instance.blocked){GUIManager.BlockInput(false);instance.blocked=false;}
-   if(instance.panel){UITooltip.HideTooltip();instance.panel.SetActive(false);Destroy(instance.panel);}
-   instance.panel=null;instance.slots.Clear();instance.entries.Clear();instance.filtered.Clear();instance.selected=null;instance.selectedKey=null;instance.core=null;instance.accessPoint=null;instance.player=null;instance.visibleStart=-1;instance.statusUntil=0;
+   if(instance.scaler){UITooltip.HideTooltip();instance.scaler.gameObject.SetActive(false);Destroy(instance.scaler.gameObject);}
+   instance.panel=null;instance.scaler=null;instance.canvas=null;instance.slots.Clear();instance.entries.Clear();instance.filtered.Clear();instance.selected=null;instance.selectedKey=null;instance.core=null;instance.accessPoint=null;instance.player=null;instance.visibleStart=-1;instance.statusUntil=0;
   }
   void OnDestroy(){if(instance==this){Close();instance=null;}}
   void Update(){
    if(!panel)return;
    if(!TerminalTransfer.CanUse(accessPoint,core,player)||ZInput.GetKeyDown(KeyCode.Escape)||ZInput.GetButtonDown("JoyButtonB")){Close();return;}
    try{
-    var parent=panel.transform.parent as RectTransform;
-    if(parent){float scale=Mathf.Min(1f,parent.rect.width/1120f,parent.rect.height/680f);panel.transform.localScale=Vector3.one*Mathf.Max(.25f,scale);}
+    Rescale();
     if(Time.unscaledTime>=nextRefresh){nextRefresh=Time.unscaledTime+1;Refresh();}
     RenderSlots();UpdateDetail();
    }catch(Exception e){Plugin.Error("terminal update",e);Close();}
   }
+  // The CanvasScaler owns referencePixelsPerUnit, but only applies a new factor on its own
+  // Update; writing the canvas too keeps the first frame from rendering at the old size.
+  void Rescale(){float factor=TerminalScale.Factor(Screen.width,Screen.height,guiScale);if(factor!=scaler.scaleFactor){scaler.scaleFactor=factor;canvas.scaleFactor=factor;}}
   static string T(string key,params object[] args)=>RsnLocalization.Text(key,args);
   Text Label(string text,Transform parent,float x,float y,float width,float height,int size=20,bool title=false){
    var go=GUIManager.Instance.CreateText(text,parent,Center,Center,new Vector2(x,y),title?GUIManager.Instance.NorseBold:GUIManager.Instance.AveriaSerif,size,title?Gold:Color.white,true,Color.black,width,height,false);
@@ -64,7 +66,11 @@ namespace RunicStorageNetwork {
   }
   void Create(){
    var ui=GUIManager.Instance;
-   panel=NetworkUiStyle.Panel(GUIManager.CustomGUIFront.transform,1080,640);panel.name="RSN_NetworkTerminal";
+   // The GUI scale setting cannot change while this panel is open: reaching it needs
+   // Escape, which closes the terminal. Read it once and follow the resolution per frame.
+   scaler=NetworkUiStyle.Screen("RSN_NetworkTerminalCanvas",2000);canvas=scaler.GetComponent<Canvas>();
+   guiScale=PlatformPrefs.GetFloat("GuiScale",GuiScaler.PlatformDefaultScaling);Rescale();
+   panel=NetworkUiStyle.Panel(scaler.transform,TerminalScale.PanelWidth,TerminalScale.PanelHeight);panel.name="RSN_NetworkTerminal";
    heading=Label(T("terminal_title"),panel.transform,0,265,900,48,32,true);heading.alignment=TextAnchor.MiddleCenter;heading.resizeTextForBestFit=true;heading.resizeTextMinSize=22;heading.resizeTextMaxSize=32;
    Button("×",panel.transform,502,269,36,36,Close);
    Line(panel.transform,0,229,1016,1,Bronze);Line(panel.transform,177,-22,1,458,Bronze);
