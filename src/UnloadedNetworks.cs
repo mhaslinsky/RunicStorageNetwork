@@ -32,6 +32,8 @@ namespace RunicStorageNetwork {
   static readonly Dictionary<string,long> requestedNetworks=new Dictionary<string,long>();
   static readonly HashSet<int> wardTypes=new HashSet<int>();
   static ZDOMan world;static bool enabled,bootstrapped;static long structure,nodesRequested=-1;static float demandUntil;
+  static Harmony patches;
+  internal static bool Installed=>patches!=null;
   internal static bool Requested=>enabled&&world==ZDOMan.instance&&ZNet.instance;
   internal static bool Authority=>ZNet.instance&&ZNet.instance.IsServer();
   internal static bool Enabled=>Requested&&(Authority||UnloadedMultiplayer.ServerEnabled);
@@ -45,7 +47,23 @@ namespace RunicStorageNetwork {
    var patch=new HarmonyMethod(typeof(UnloadedNetworks),handler){priority=prefix?Priority.First:Priority.Last};
    h.Patch(target,prefix:prefix?patch:null,postfix:prefix?null:patch);
   }
-  internal static void Install(Harmony h){
+  internal static void Install(){
+   if(Installed||!Plugin.ExperimentalUnloadedNetworks.Value)return;
+   // Separate owner: a failed optional patch must not disable normal supply or
+   // remove the stable mod's patches. No game API lookup occurs when opted out.
+   var h=new Harmony(Plugin.Guid+".unloaded");
+   try{InstallHooks(h);patches=h;}
+   catch(Exception e){
+    Shutdown();StorageIndex.Offline=null;CraftInspection.FindContainer=CraftInspection.LoadedContainer;
+    try{h.UnpatchSelf();}catch(Exception cleanup){Plugin.Error("experimental patch cleanup",cleanup);}
+    Plugin.Error("Unloaded-network experiment unavailable; normal networking remains active",e);
+   }
+  }
+  internal static void Uninstall(){
+   Shutdown();StorageIndex.Offline=null;CraftInspection.FindContainer=CraftInspection.LoadedContainer;
+   var h=patches;patches=null;h?.UnpatchSelf();
+  }
+  static void InstallHooks(Harmony h){
    Hook(h,typeof(ZNetScene),"Awake",nameof(Bootstrap));
    Hook(h,typeof(ZNet),"Start",nameof(WorldLoaded));
    Hook(h,typeof(ZNetScene),"OnDestroy",nameof(Shutdown),true);
@@ -61,10 +79,7 @@ namespace RunicStorageNetwork {
    Hook(h,typeof(ZNetScene),"RemoveObjects",nameof(PinTransactions),true);
    Hook(h,typeof(Container),"Load",nameof(LoadReplica),true,Type.EmptyTypes);
    Hook(h,typeof(Container),"Save",nameof(SaveReplica),true,Type.EmptyTypes);
-   StorageIndex.DemandDriven=()=>Enabled;
-   StorageIndex.HasDemand=()=>Demand;
-   StorageIndex.AreaReady=SourceReady;
-   StorageIndex.ReadFailure=ReadFailure;
+   StorageIndex.Offline=new StorageIndex.UnloadedMode(()=>Enabled,()=>Demand,SourceReady,ReadFailure);
    CraftInspection.FindContainer=FindContainer;
   }
   static void Shutdown(){
@@ -73,7 +88,7 @@ namespace RunicStorageNetwork {
    replicas.Clear();nodes.Clear();chests.Clear();wards.Clear();chestSectors.Clear();positions.Clear();nodeState.Clear();creators.Clear();owners.Clear();wardAccess.Clear();queue.Clear();queued.Clear();ownerPending.Clear();requestedChests.Clear();requestedNetworks.Clear();wardTypes.Clear();chestTypes.Clear();world=null;enabled=false;bootstrapped=false;structure=0;nodesRequested=-1;demandUntil=0;
   }
   static void Bootstrap(){
-   Shutdown();world=ZDOMan.instance;enabled=Plugin.ExperimentalUnloadedNetworks.Value;
+   Shutdown();world=ZDOMan.instance;enabled=Installed;
    if(!enabled)return;
    // ZNetScene.Awake runs BEFORE ZNet.Start reads both old and chunked saves.
    // Only latch the setting here. Index the completed records after that load.
@@ -281,6 +296,7 @@ namespace RunicStorageNetwork {
   internal static bool KeepOwner(ZDO z,long owner)=>Enabled&&Authority&&z.GetOwner()==ZNet.GetUID()&&owner==0&&requestedChests.Contains(z.m_uid)&&chests.TryGetValue(z.m_uid,out var saved)&&ReferenceEquals(saved,z);
   internal static Core FindCore(ZDOID id){if(Enabled&&replicas.TryGetValue(id,out var go)&&go)return go.GetComponent<Core>();return null;}
   internal static Container FindContainer(ZDOID id){
+   if(!Enabled)return CraftInspection.LoadedContainer(id);
    Container proxy=null;if(Enabled&&replicas.TryGetValue(id,out var go)&&go)proxy=go.GetComponent<Container>();
    if(proxy&&Transport.Leases.ContainsKey(proxy.GetInventory()))return proxy;
    if(Enabled&&Authority&&chests.TryGetValue(id,out var z))ClaimUnowned(z);

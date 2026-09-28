@@ -8,7 +8,8 @@ namespace RunicStorageNetwork {
  // Separate read-only owner queries from Prepare/Commit. Selecting an
  // incomplete recipe still refreshes every one of its ingredients.
  internal static class CraftInspection {
-  internal static Func<ZDOID,Container> FindContainer=id=>ZNetScene.instance.FindInstance(id)?.GetComponent<Container>();
+  internal static Container LoadedContainer(ZDOID id)=>ZNetScene.instance.FindInstance(id)?.GetComponent<Container>();
+  internal static Func<ZDOID,Container> FindContainer=LoadedContainer;
   sealed class Source {internal string Key;internal long Owner;internal ZDOID Id;internal float Sent,FirstSent=-1;internal bool Delivered,Deferred;}
   static Operation operation;
   static Recipe recipe;static ItemDrop.ItemData upgrade;

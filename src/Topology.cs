@@ -60,6 +60,10 @@ namespace RunicStorageNetwork {
   }
   internal static void Clear(){Members.Clear();DestroyedRoots.Clear();byId.Clear();pools.Clear();containerNetworks.Clear();labelRoots.Clear();selections.Clear();actorGraphs.Clear();Graph=new NetworkGraph(new NetworkNode[0],50);next=0;dirty=true;HoverInfo.Clear();ContainerHover.Clear();}
   internal static NetworkMember Member(string id)=>byId.TryGetValue(id,out var n)&&n&&n.Valid?n:null;
+  internal static ZDOID[] OperationNodes(string network){
+   if(!UnloadedNetworks.Enabled)return Members.Where(m=>m&&m.Valid&&m.Network==network).Select(m=>m.View.GetZDO().m_uid).Distinct().ToArray();
+   return Graph.Nodes.Values.Where(n=>n.Network==network).Select(n=>Member(n.Id)).Where(m=>m&&m.Valid).Select(m=>m.View.GetZDO().m_uid).Distinct().ToArray();
+  }
   internal static Core Root(string network){Refresh();return RootSnapshot(network);}
   internal static Core RootSnapshot(string network)=>network!=null&&Graph.Roots.TryGetValue(network,out var id)?Member(id)?.GetComponent<Core>():null;
   internal static bool Allowed(NetworkNode node,long actor){var n=Member(node.Id);return n&&n.Valid&&(actor==0||Access.Ward(n.transform.position,actor));}
@@ -84,12 +88,11 @@ namespace RunicStorageNetwork {
     var chests=new Dictionary<(int,int,int),List<Container>>();
     var pieces=(IEnumerable<Piece>)R.Get<List<Piece>>(typeof(Piece),"s_allPieces");
     if(UnloadedNetworks.Enabled)pieces=pieces.Concat(UnloadedNetworks.Containers.Select(c=>c.GetComponent<Piece>()));
-    var seenChests=new HashSet<ZDOID>();
+    var seenChests=UnloadedNetworks.Enabled?new HashSet<ZDOID>():null;
     foreach(var piece in pieces){
      // The component check rejects nearly every piece first; only real containers are named.
      var c=piece?piece.GetComponent<Container>():null;if(!c||!R.Valid(R.View(c)))continue;
-     var id=R.View(c).GetZDO().m_uid;if(!seenChests.Add(id))continue;
-     if(UnloadedNetworks.Enabled)c=UnloadedNetworks.FindContainer(id);if(!c)continue;
+     if(seenChests!=null){var id=R.View(c).GetZDO().m_uid;if(!seenChests.Add(id))continue;c=UnloadedNetworks.FindContainer(id);if(!c)continue;}
      if(!ContainerPolicy.Eligible(R.Id(c.gameObject)))continue;
      StorageIndex.Register(c);
      var key=cell(c.transform.position);if(!chests.TryGetValue(key,out var bucket))chests[key]=bucket=new List<Container>();bucket.Add(c);
@@ -111,7 +114,7 @@ namespace RunicStorageNetwork {
   }
   internal static List<Container> Pool(Core core){Refresh();var n=core?core.GetComponent<NetworkMember>():null;return n&&pools.TryGetValue(n.Network,out var list)?list:new List<Container>();}
   internal static Core Choose(Vector3 point,long actor){
-   UnloadedMultiplayer.Touch(point,actor);
+   if(UnloadedNetworks.Requested)UnloadedMultiplayer.Touch(point,actor);
    if(!Plugin.Enabled)return null;Refresh();if(selections.TryGetValue(actor,out var cached)&&cached.Point==point&&Time.unscaledTime<cached.Until&&cached.Core&&cached.Core.Valid){UnloadedNetworks.Request(cached.Core);return cached.Core;}
    var graph=ForActor(actor);string net=graph.Choose(Position(point),n=>true);var core=net!=null&&graph.Roots.TryGetValue(net,out var root)?Member(root)?.GetComponent<Core>():null;selections[actor]=new Selection{Point=point,Until=Time.unscaledTime+.25f,Core=core};UnloadedNetworks.Request(core);return core;
   }
@@ -160,7 +163,7 @@ namespace RunicStorageNetwork {
   void Update(){
    if(world!=ZNet.instance){Topology.Clear();StorageIndex.Clear();world=ZNet.instance;}
    if(!world||!ZNetScene.instance)return;
-   UnloadedMultiplayer.Tick();
+   if(UnloadedNetworks.Requested)UnloadedMultiplayer.Tick();
    if(UnloadedNetworks.Enabled)UnloadedNetworks.Tick();else {Topology.CheckAccessRevision();Topology.Refresh();}
 
    StorageIndex.Tick();RecipeIndex.Background();

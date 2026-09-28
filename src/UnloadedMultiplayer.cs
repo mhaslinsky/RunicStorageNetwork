@@ -82,7 +82,7 @@ namespace RunicStorageNetwork {
   }
   static void Catalog(long sender,ZPackage p){
    if(!UnloadedNetworks.Requested||UnloadedNetworks.Authority||sender!=Transport.Server||p.ReadInt()!=token)return;
-   bool enabled=p.ReadBool();if(!enabled){if(serverEnabled){Replace(Array.Empty<Record>());Plugin.Info("Experimental unloaded networks are disabled on the server; using loaded-area networking.");}serverEnabled=false;pages.Clear();generation=0;return;}serverEnabled=true;
+   bool enabled=p.ReadBool();if(!enabled){if(serverEnabled){Replace(Array.Empty<Record>());StorageIndex.Offline?.Suspend();Plugin.Info("Experimental unloaded networks are disabled on the server; using loaded-area networking.");}serverEnabled=false;pages.Clear();generation=0;return;}serverEnabled=true;
    int current=p.ReadInt(),index=p.ReadInt(),count=p.ReadInt(),total=p.ReadInt(),length=p.ReadInt();
    if(current<1||current<generation||count<1||count>(MaxRecords+PageSize-1)/PageSize||index<0||index>=count||total<0||total>MaxRecords||count!=Math.Max(1,(total+PageSize-1)/PageSize)||length!=Math.Min(PageSize,total-index*PageSize))return;
    var records=new Record[length];

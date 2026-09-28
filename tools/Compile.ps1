@@ -101,7 +101,7 @@ if($Tests){
  $storageRsp=Join-Path $Output 'StorageIndexRuntimeTests.rsp'
  $storageLines=@('/nologo','/nostdlib+','/langversion:9','/target:exe','/define:STORAGE_INDEX_RUNTIME_TESTS',('/out:"'+$storageProbe+'"'))
  $storageLines+=@($refs | Select-Object -Unique | ForEach-Object {'/reference:"'+$_+'"'})
- $storageLines+=@('src\StorageIndex.cs','src\ResourceCatalog.cs','src\Planner.cs','tests\StorageIndexRuntimeTests.cs' | ForEach-Object {'"'+(Join-Path $root $_)+'"'})
+ $storageLines+=@('src\StorageIndex.cs','src\UnloadedStorageIndex.cs','src\ResourceCatalog.cs','src\Planner.cs','tests\StorageIndexRuntimeTests.cs' | ForEach-Object {'"'+(Join-Path $root $_)+'"'})
  [IO.File]::WriteAllLines($storageRsp,$storageLines)
  & "$editor\NetCoreRuntime\dotnet.exe" "$editor\DotNetSdkRoslyn\csc.dll" "@$storageRsp"
  if($LASTEXITCODE -ne 0){throw 'Storage runtime test compilation failed'}
@@ -133,9 +133,13 @@ if($Tests){
  if($LASTEXITCODE -ne 0){throw 'Terminal runtime tests failed'}
  $offlineProbe=Join-Path $Output 'UnloadedNetworkRuntimeTests.exe'
  $offlineRsp=Join-Path $Output 'UnloadedNetworkRuntimeTests.rsp'
+ $offlineNodes=Join-Path $Output 'OperationNodesMethod.cs'
+ $nodesMethod=Read-TestMethod 'src\Topology.cs' 'internal static ZDOID[] OperationNodes'
+ [IO.File]::WriteAllText($offlineNodes,"using System.Linq; namespace RunicStorageNetwork { static partial class Topology {`n"+$nodesMethod+"`n} }")
  $offlineLines=@('/nologo','/nostdlib+','/langversion:9','/target:exe','/define:UNLOADED_NETWORK_RUNTIME_TESTS',('/out:"'+$offlineProbe+'"'))
  $offlineLines+=@($refs | Select-Object -Unique | ForEach-Object {'/reference:"'+$_+'"'})
- $offlineLines+=@('src\UnloadedNetworks.cs','src\UnloadedMultiplayer.cs','tests\UnloadedNetworkRuntimeTests.cs' | ForEach-Object {'"'+(Join-Path $root $_)+'"'})
+ $offlineLines+=@('src\UnloadedNetworks.cs','src\UnloadedMultiplayer.cs','src\UnloadedAvailability.cs','tests\UnloadedNetworkRuntimeTests.cs' | ForEach-Object {'"'+(Join-Path $root $_)+'"'})
+ $offlineLines+='"'+$offlineNodes+'"'
  [IO.File]::WriteAllLines($offlineRsp,$offlineLines)
  & "$editor\NetCoreRuntime\dotnet.exe" "$editor\DotNetSdkRoslyn\csc.dll" "@$offlineRsp"
  if($LASTEXITCODE -ne 0){throw 'Unloaded network runtime test compilation failed'}

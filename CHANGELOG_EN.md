@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.5
+
+- Isolated the unloaded-network experiment from normal storage and crafting when disabled.
+- Normal network supply remains available if the experimental feature cannot start.
+- Changing the experimental setting now requires a full restart of the game or dedicated server.
+
 ## 0.8.4
 
 - Added experimental multiplayer support for distant networks: use connected storage even when no player is near the core or chests. Enable the option on the server and all clients.
