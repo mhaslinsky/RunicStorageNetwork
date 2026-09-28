@@ -23,7 +23,8 @@ namespace RunicStorageNetwork {
    if(!Plugin.Enabled)state=RsnLocalization.Text("disabled");
    else if(!Access.Ward(transform.position,player.GetPlayerID()))state=RsnLocalization.Text("error_access");
    else{
-    // Consume NetworkSystem's snapshot; hovering never scans chests or rebuilds topology.
+    if(UnloadedNetworks.Enabled)Core.Choose(transform.position,player.GetPlayerID());
+    // Normal mode consumes NetworkSystem's snapshot; the experiment primes discovery on demand.
     var graph=Topology.ForActor(player.GetPlayerID());string network=graph.Choose(Topology.Position(transform.position),n=>true);
     if(network!=null&&graph.Roots.TryGetValue(network,out var id))core=Topology.Member(id)?.GetComponent<Core>();
     var name=core?NetworkName.For(core.GetComponent<NetworkMember>()):"";

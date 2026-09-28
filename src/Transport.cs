@@ -69,7 +69,7 @@ namespace RunicStorageNetwork {
    }
    return Stockroom.Qualities(Needs,stock,!Build);
   }
-  internal static Core CoreObject(ZDOID id)=>ZNetScene.instance?ZNetScene.instance.FindInstance(id)?.GetComponent<Core>():null;
+  internal static Core CoreObject(ZDOID id)=>UnloadedNetworks.FindCore(id)??(ZNetScene.instance?ZNetScene.instance.FindInstance(id)?.GetComponent<Core>():null);
  }
  internal static class Wire {
   internal static void Stocks(ZPackage p,List<Stock> items){if(items.Count>SourceSelection.MaxEntries)throw new InvalidOperationException("Snapshot limit");p.Write(items.Count);foreach(var s in items){p.Write(s.Source);p.Write(s.Item);p.Write(s.Quality);p.Write(s.Amount);}}
@@ -192,7 +192,7 @@ namespace RunicStorageNetwork {
    dispatchOffset=index;
   }
   void Prepare(long sender,ZPackage p){
-   if(sender!=Server)return;var op=Operation.Read(p);var id=p.ReadZDOID();var c=ZNetScene.instance.FindInstance(id)?.GetComponent<Container>();var key=R.Key(id);var answer=Header(op.Id);answer.Write(key);
+   if(sender!=Server)return;var op=Operation.Read(p);var id=p.ReadZDOID();var c=UnloadedNetworks.FindContainer(id);var key=R.Key(id);var answer=Header(op.Id);answer.Write(key);
    if(releasedLeases.Contains(op.Id+key)){answer.Write(false);answer.Write("operation already released");Send(Server,"prepared",answer);return;}
    if(c&&c.GetInventory()!=null&&Leases.TryGetValue(c.GetInventory(),out var existing)&&existing.Op.Id==op.Id){answer.Write(true);Wire.Stocks(answer,existing.Snapshot);Send(Server,"prepared",answer);return;}
    var context=new RemoteContext(op);bool valid=op.ReadRequirements(out string why)&&context.OwnerSource(c,out why);
@@ -337,8 +337,8 @@ namespace RunicStorageNetwork {
    if(sender!=Server)return;string id=p.ReadString(),key=p.ReadString();bool rollback=p.ReadBool();var lease=Leases.Values.FirstOrDefault(l=>l.Op.Id==id&&l.Key==key);if(lease==null){releasedLeases.Add(id+key);AcknowledgeRelease(id,key);return;}
    if(!lease.Container||!R.View(lease.Container).IsOwner()){Plugin.Critical(id,"Release ownership lost; no blind rollback");return;}
    InternalMutation++;try{
-    if(rollback)lease.Delta?.Restore();R.Call(lease.Container,"Save");Integrations.Block(lease.Container.GetInventory(),false);
-    R.Set(lease.Container,"m_inUse",false);R.View(lease.Container).GetZDO().Set(ZDOVars.s_inUse,0);R.View(lease.Container).GetZDO().Set("rsn_lease","");Leases.Remove(lease.Container.GetInventory());releasedLeases.Add(id+key);Plugin.Debug(id+(rollback?" compensated/released ":" released ")+key);AcknowledgeRelease(id,key);
+    if(rollback)lease.Delta?.Restore();if(!UnloadedNetworks.DiscardUnpaid(lease.Container,lease.Paid))R.Call(lease.Container,"Save");Integrations.Block(lease.Container.GetInventory(),false);
+    R.Set(lease.Container,"m_inUse",false);R.View(lease.Container).GetZDO().Set(ZDOVars.s_inUse,0);R.View(lease.Container).GetZDO().Set("rsn_lease","");Leases.Remove(lease.Container.GetInventory());UnloadedNetworks.Released(lease.Container);releasedLeases.Add(id+key);Plugin.Debug(id+(rollback?" compensated/released ":" released ")+key);AcknowledgeRelease(id,key);
    }catch(Exception e){Plugin.Error(id+" compensation/release",e);}finally{InternalMutation--;}
   }
   void Reject(Operation op,string reason){ended.Add(op.Id);terminal[op.Id]=new Refusal{Op=op,Reason=reason};Plugin.Debug(op.Id+" refused: "+reason+" peer="+op.Peer+" actor="+R.Key(op.Actor)+" core="+R.Key(op.Core)+" network="+op.Network+" target="+op.Target);SendRefusal(op,reason);}

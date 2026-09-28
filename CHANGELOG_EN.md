@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.2
+
+- Added an experimental single-player option to use networks outside the player's loaded area, including after entering the world far from the core.
+- The option also supports eligible modded containers that use standard inventory storage.
+- With the option enabled, storage updates are processed when the network is used instead of periodically recounting idle storage.
+- The option is disabled by default and may cause errors, including inventory problems. Back up your world before enabling it and reload the world after changing the setting.
+
 ## 0.8.1
 
 - Added the Runic Codex, crafted at a level 1 forge from silver, crystals, greydwarf eyes, linen thread and leather scraps.

@@ -35,7 +35,8 @@ namespace RunicStorageNetwork {
    var result=new List<Stock>();foreach(var c in Pool)if(Access.Container(c,player,this,out _,preview:true))result.AddRange(Stockroom.Preview(c));
    cached[player]=new Cached{Until=Time.unscaledTime+0.25f,Items=result};return result;
   }
-  void OnDestroy(){Live.Remove(this);Pool.Clear();foreach(var inv in subscribed)inv.m_onChanged-=Invalidate;subscribed.Clear();cached.Clear();if(registered)Plugin.Debug("Core removed");}
+  internal void Detach(){Live.Remove(this);Pool.Clear();foreach(var inv in subscribed)inv.m_onChanged-=Invalidate;subscribed.Clear();cached.Clear();}
+  void OnDestroy(){Detach();if(registered)Plugin.Debug("Core removed");}
   internal static Core Choose(Vector3 point,long player){
    if(!Plugin.Enabled)return null;
    return Topology.Choose(point,player);
@@ -51,6 +52,7 @@ namespace RunicStorageNetwork {
  }
  internal static class Access {
   internal static bool Ward(Vector3 point,long player){
+   if(UnloadedNetworks.Enabled)return UnloadedNetworks.Ward(point,player);
    bool denied=false,allowed=false;
    foreach(var area in R.Get<List<PrivateArea>>(typeof(PrivateArea),"m_allAreas")) {
     if(!area||!(bool)R.Call(area,"IsEnabled",Type.EmptyTypes)||!(bool)R.Call(area,"IsInside",new[]{typeof(Vector3),typeof(float)},point,0f))continue;
@@ -64,7 +66,7 @@ namespace RunicStorageNetwork {
    var piece=c.GetComponent<Piece>();reason="not player built";if(!piece||!piece.IsPlacedByPlayer())return false;
    reason="moving/private";if(c.m_privacy!=global::Container.PrivacySetting.Public||c.m_wagon||c.m_rootObjectOverride||c.GetComponentInParent<Ship>()||c.GetComponentInParent<Rigidbody>())return false;
    reason="network path/storage coverage unavailable";if(!(display==null?Topology.Covers(core,c.transform.position,player):display.Covers(core,c.transform.position,player)))return false;
-   reason="unconfirmed loaded area";if(!(display==null?ZNetScene.instance.IsAreaReady(c.transform.position):display.Ready(c.transform.position)))return false;
+   reason="unconfirmed loaded area";if(!UnloadedNetworks.CanUseUnloaded(c)&&!(display==null?ZNetScene.instance.IsAreaReady(c.transform.position):display.Ready(c.transform.position)))return false;
    reason="access denied";if(!(bool)R.Call(c,"CheckAccess",new[]{typeof(long)},player)||!(display==null?Ward(c.transform.position,player):display.Ward(c.transform.position,player))||!(display==null?Ward(core.transform.position,player):display.Ward(core.transform.position,player)))return false;
    reason="inventory unavailable";if(c.GetInventory()==null)return false;
    bool reservedPreview=preview&&(v.GetZDO().GetString("rsn_lease","")!=""||Transport.Reserved(v.GetZDO()));

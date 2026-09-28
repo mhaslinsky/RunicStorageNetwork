@@ -66,12 +66,14 @@ namespace RunicStorageNetwork {
   internal static bool NetworkAllowed(string network,long actor)=>Graph.Roots.TryGetValue(network,out var id)&&Allowed(Graph.Nodes[id],actor);
   internal static void Refresh(bool force=false){
    if(refreshing||!ZNetScene.instance||!ZoneSystem.instance)return;
-   if(!force&&!dirty&&Time.unscaledTime<next)return;refreshing=true;
+   if(UnloadedNetworks.Enabled&&!UnloadedNetworks.Prepare())return;
+   if(!force&&!dirty&&(UnloadedNetworks.Enabled||Time.unscaledTime<next))return;refreshing=true;
    try {
     dirty=false;next=Time.unscaledTime+Plugin.Rescan.Value;byId.Clear();selections.Clear();actorGraphs.Clear();
     foreach(var member in Members.Where(m=>m&&m.Valid).OrderBy(m=>m.Id,StringComparer.Ordinal))byId[member.Id]=member;
+    if(UnloadedNetworks.Enabled)foreach(var member in UnloadedNetworks.Members)byId[member.Id]=member;
     Graph=NetworkGraph.Automatic(byId.Values.Select(m=>new NetworkNode{Id=m.Id,Network=m.SavedNetwork,Root=m.Root,Position=Position(m.transform.position),
-     Confirmed=m.View.GetZDO().GetInt(NetworkMember.SchemaKey,0)==1&&ZNetScene.instance.IsAreaReady(m.transform.position),Storage=m.Root?Plugin.StorageRadius.Value:Plugin.RelayStorage.Value,Supply=m.Root?Plugin.SupplyRadius.Value:Plugin.RelaySupply.Value}),Plugin.RelayLink.Value);
+     Confirmed=m.View.GetZDO().GetInt(NetworkMember.SchemaKey,0)==1&&(UnloadedNetworks.IsReplica(m)||ZNetScene.instance.IsAreaReady(m.transform.position)),Storage=m.Root?Plugin.StorageRadius.Value:Plugin.RelayStorage.Value,Supply=m.Root?Plugin.SupplyRadius.Value:Plugin.RelaySupply.Value}),Plugin.RelayLink.Value);
     pools.Clear();containerNetworks.Clear();labelRoots.Clear();
     // Persistent core identities keep the displayed name stable across world reloads.
     foreach(var root in Graph.Nodes.Values.Where(n=>n.Root&&Graph.Hops.ContainsKey(n.Id)).OrderBy(n=>Member(n.Id).SavedNetwork,StringComparer.Ordinal).ThenBy(n=>n.Id,StringComparer.Ordinal))
@@ -80,9 +82,14 @@ namespace RunicStorageNetwork {
     float cellSize=Mathf.Max(Plugin.StorageRadius.Value,Plugin.RelayStorage.Value);
     Func<Vector3,(int,int,int)> cell=p=>((int)Math.Floor(p.x/cellSize),(int)Math.Floor(p.y/cellSize),(int)Math.Floor(p.z/cellSize));
     var chests=new Dictionary<(int,int,int),List<Container>>();
-    foreach(var piece in R.Get<List<Piece>>(typeof(Piece),"s_allPieces")){
+    var pieces=(IEnumerable<Piece>)R.Get<List<Piece>>(typeof(Piece),"s_allPieces");
+    if(UnloadedNetworks.Enabled)pieces=pieces.Concat(UnloadedNetworks.Containers.Select(c=>c.GetComponent<Piece>()));
+    var seenChests=new HashSet<ZDOID>();
+    foreach(var piece in pieces){
      // The component check rejects nearly every piece first; only real containers are named.
      var c=piece?piece.GetComponent<Container>():null;if(!c||!R.Valid(R.View(c)))continue;
+     var id=R.View(c).GetZDO().m_uid;if(!seenChests.Add(id))continue;
+     if(UnloadedNetworks.Enabled)c=UnloadedNetworks.FindContainer(id);if(!c)continue;
      if(!ContainerPolicy.Eligible(R.Id(c.gameObject)))continue;
      StorageIndex.Register(c);
      var key=cell(c.transform.position);if(!chests.TryGetValue(key,out var bucket))chests[key]=bucket=new List<Container>();bucket.Add(c);
@@ -104,8 +111,8 @@ namespace RunicStorageNetwork {
   }
   internal static List<Container> Pool(Core core){Refresh();var n=core?core.GetComponent<NetworkMember>():null;return n&&pools.TryGetValue(n.Network,out var list)?list:new List<Container>();}
   internal static Core Choose(Vector3 point,long actor){
-   if(!Plugin.Enabled)return null;Refresh();if(selections.TryGetValue(actor,out var cached)&&cached.Point==point&&Time.unscaledTime<cached.Until&&cached.Core&&cached.Core.Valid)return cached.Core;
-   var graph=ForActor(actor);string net=graph.Choose(Position(point),n=>true);var core=net!=null&&graph.Roots.TryGetValue(net,out var root)?Member(root)?.GetComponent<Core>():null;selections[actor]=new Selection{Point=point,Until=Time.unscaledTime+.25f,Core=core};return core;
+   if(!Plugin.Enabled)return null;Refresh();if(selections.TryGetValue(actor,out var cached)&&cached.Point==point&&Time.unscaledTime<cached.Until&&cached.Core&&cached.Core.Valid){UnloadedNetworks.Request(cached.Core);return cached.Core;}
+   var graph=ForActor(actor);string net=graph.Choose(Position(point),n=>true);var core=net!=null&&graph.Roots.TryGetValue(net,out var root)?Member(root)?.GetComponent<Core>():null;selections[actor]=new Selection{Point=point,Until=Time.unscaledTime+.25f,Core=core};UnloadedNetworks.Request(core);return core;
   }
   internal static NetworkGraph ForActor(long actor){
    if(!actorGraphs.TryGetValue(actor,out var graph))actorGraphs[actor]=graph=NetworkGraph.Automatic(Graph.Nodes.Values.Select(n=>new NetworkNode{Id=n.Id,Network=Member(n.Id)?.SavedNetwork??"",Root=n.Root,Confirmed=n.Confirmed&&Allowed(n,actor),Position=n.Position,Storage=n.Storage,Supply=n.Supply}),Plugin.RelayLink.Value);
@@ -151,7 +158,8 @@ namespace RunicStorageNetwork {
   ZNet world;
   void Update(){
    if(world!=ZNet.instance){Topology.Clear();StorageIndex.Clear();world=ZNet.instance;}
-   if(!world||!ZNetScene.instance)return;Topology.CheckAccessRevision();Topology.Refresh();
+   if(!world||!ZNetScene.instance)return;
+   if(UnloadedNetworks.Enabled)UnloadedNetworks.Tick();else {Topology.CheckAccessRevision();Topology.Refresh();}
 
    StorageIndex.Tick();RecipeIndex.Background();
    HoverInfo.Tick();

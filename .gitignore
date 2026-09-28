@@ -21,6 +21,7 @@
 !/tools/
 /tools/*
 !/tools/Compile.ps1
+!/tools/BuildUnloadedExperiment.ps1
 !/tools/ValidateRelease.ps1
 !/tools/TestReleaseValidation.ps1
 !/tools/BuildIcons.cs

@@ -23,7 +23,7 @@ namespace RunicStorageNetwork {
  static class Access {internal static bool Container(Container c,long player,Core core,out string reason,bool ownLease){reason=null;return c&&core.Pool.Contains(c);}}
  static class Transport {internal static bool Locked(Inventory i)=>false;}
  static class Integrations {internal static bool IsBusy(Inventory i)=>false;}
- static class Stockroom {internal static int Reads;internal static List<Stock> Preview(Container c){Reads++;return c.Inventory.Items.ToList();}}
+ static class Stockroom {internal static int Reads;internal static bool Fail;internal static List<Stock> Preview(Container c){if(Fail)throw new InvalidOperationException("unreadable inventory");Reads++;return c.Inventory.Items.ToList();}}
 }
 static class StorageIndexRuntimeTests {
  static int passed;static Core core;
@@ -31,7 +31,7 @@ static class StorageIndexRuntimeTests {
  static Container Add(int id,string name="Wood",int amount=10){var c=new Container{View=new ZNetView{Zdo=new ZDO{m_uid=new ZDOID{Value=id}}}};if(amount>0)c.Inventory.Items.Add(new Stock(id.ToString(),name,1,amount));core.Pool.Add(c);StorageIndex.Register(c);return c;}
  static List<Stock> Query(string name="Wood")=>StorageIndex.Query(core,1,new[]{new Need(name,1)});
  static void Drain(){for(int i=0;i<100;i++)StorageIndex.Tick();}
- static void Test(string name,Action body){StorageIndex.Clear();core=new Core();UnityEngine.Time.unscaledTime=0;Stockroom.Reads=0;body();passed++;Console.WriteLine("PASS storage runtime "+name);}
+ static void Test(string name,Action body){StorageIndex.Clear();StorageIndex.DemandDriven=()=>false;StorageIndex.HasDemand=()=>true;StorageIndex.AreaReady=c=>true;StorageIndex.ReadFailure=(c,e)=>false;core=new Core();UnityEngine.Time.unscaledTime=0;Stockroom.Reads=0;Stockroom.Fail=false;body();passed++;Console.WriteLine("PASS storage runtime "+name);}
  public static int Main(){try{
   Test("95 chests are indexed once and unchanged frames do not recount",()=>{for(int i=1;i<=95;i++)Add(i);Drain();Check(Query().Sum(s=>s.Amount)==950,"incomplete index");int reads=Stockroom.Reads;Drain();Check(Stockroom.Reads==reads,"unchanged inventories recounted");});
   Test("inventory event rereads only the changed chest",()=>{var a=Add(1);Add(2);Drain();Stockroom.Reads=0;a.Inventory.Items[0].Amount=40;a.Inventory.Changed();Drain();Check(Stockroom.Reads==1&&Query().Sum(s=>s.Amount)==50,"event did not isolate source");});
@@ -45,6 +45,13 @@ static class StorageIndexRuntimeTests {
   Test("access and network membership are checked at query time",()=>{var a=Add(1);Drain();core.Pool.Remove(a);Check(Query().Count==0,"foreign network stock leaked");});
   Test("opening station reconciliation refreshes contents",()=>{var a=Add(1);Drain();a.Inventory.Items[0].Amount=25;StorageIndex.Reconcile(core);Drain();Check(Query().Single().Amount==25,"open station reused silent mutation");});
   Test("world clear detaches all listeners",()=>{var a=Add(1);Drain();StorageIndex.Clear();Check(a.Inventory.m_onChanged==null&&Query().Count==0,"world state retained");});
+  Test("experimental idle never reads a queued chest",()=>{StorageIndex.DemandDriven=()=>true;StorageIndex.HasDemand=()=>false;Add(1);Drain();Check(Stockroom.Reads==0,"idle work");StorageIndex.HasDemand=()=>true;Drain();Check(Stockroom.Reads==1,"request not serviced");});
+  Test("experimental 95 chests are read once with no periodic audits",()=>{StorageIndex.DemandDriven=()=>true;for(int i=1;i<=95;i++)Add(i);Drain();Check(Stockroom.Reads==95&&Query().Sum(s=>s.Amount)==950,"incomplete request");UnityEngine.Time.unscaledTime=900;Drain();Check(Stockroom.Reads==95,"periodic rescan");});
+  Test("experimental repeated events coalesce to one source update",()=>{StorageIndex.DemandDriven=()=>true;var a=Add(1);Add(2);Drain();Stockroom.Reads=0;a.Inventory.Items[0].Amount=25;for(int i=0;i<20;i++)a.Inventory.Changed();Drain();Check(Stockroom.Reads==1&&Query().Sum(s=>s.Amount)==35,"event amplification");});
+  Test("experimental opening reconciles missed revision events",()=>{StorageIndex.DemandDriven=()=>true;var a=Add(1,amount:0);Drain();a.Inventory.Items.Add(new Stock("1","Wood",1,50));a.View.Zdo.DataRevision++;StorageIndex.Reconcile(core);Drain();Check(Query().Single().Amount==50,"new resource missed");});
+  Test("experimental queued old instance cannot overwrite replacement",()=>{StorageIndex.DemandDriven=()=>true;var a=Add(1);core.Pool.Remove(a);Add(1,amount:4);Drain();Check(Query().Single().Amount==4&&Stockroom.Reads==1,"stale queue entry applied");});
+  Test("experimental source waits for area readiness without losing queued update",()=>{StorageIndex.DemandDriven=()=>true;StorageIndex.AreaReady=c=>false;Add(1);Drain();Check(Stockroom.Reads==0,"read unready area");StorageIndex.AreaReady=c=>true;Drain();Check(Query().Single().Amount==10&&Stockroom.Reads==1,"readiness update lost");});
+  Test("refused offline read removes formerly available counts and can recover",()=>{StorageIndex.DemandDriven=()=>true;Add(1);Drain();Stockroom.Fail=true;StorageIndex.ReadFailure=(c,e)=>true;StorageIndex.Changed("1");Drain();Check(Query().Count==0&&!StorageIndex.Ready(core),"stale counts survived refusal");Stockroom.Fail=false;StorageIndex.Reconcile(core);Drain();Check(Query().Single().Amount==10,"recovery failed");});
   Console.WriteLine("Storage runtime tests: "+passed+" passed");return 0;
  }catch(Exception e){Console.Error.WriteLine(e);return 1;}}
 }

@@ -12,14 +12,14 @@ using Jotunn.Utils;
 using UnityEngine;
 
 namespace RunicStorageNetwork {
- [BepInPlugin(Guid, "Runic Storage Network", "0.8.1")]
+ [BepInPlugin(Guid, "Runic Storage Network", "0.8.2")]
  [BepInDependency("com.jotunn.jotunn", "2.30.2")]
  [BepInDependency("com.maxsch.valheim.MultiUserChest",BepInDependency.DependencyFlags.SoftDependency)]
  [NetworkCompatibility(CompatibilityLevel.EveryoneMustHaveMod,VersionStrictness.Patch)]
  public sealed class Plugin:BaseUnityPlugin {
   public const string Guid="local.runicstoragenetwork";
   internal static ManualLogSource Log;
-  internal static ConfigEntry<bool> Supply,DebugLogging;
+  internal static ConfigEntry<bool> Supply,DebugLogging,ExperimentalUnloadedNetworks;
   internal static ConfigEntry<float> StorageRadius,SupplyRadius,Rescan,RelayLink,RelayStorage,RelaySupply;
   internal static ConfigEntry<string> AllowedContainers,DeniedContainers,DeniedComponents;
   internal static ConfigEntry<string> AllowedBuildTools,DeniedBuildTools,DeniedPieceComponents;
@@ -40,6 +40,7 @@ namespace RunicStorageNetwork {
   void Awake(){
    Log=Logger;
    Supply=Config.Bind("Network","SupplyEnabled",true,new ConfigDescription("Enable supply; registered building remains available.",null,new ConfigurationManagerAttributes{IsAdminOnly=true}));
+   ExperimentalUnloadedNetworks=Config.Bind("Experimental","ExperimentalUnloadedNetworks",false,"EXPERIMENTAL: allow networks and eligible storage to work outside the player's loaded area. Single player only. May cause errors, including inventory problems. Back up your world before testing. Requires reloading the world. Default: disabled. / ЭКСПЕРИМЕНТАЛЬНО: работа сети вне области загрузки игрока, только одиночная игра. Возможны ошибки, в том числе с инвентарём. Сделайте резервную копию мира. Требуется перезайти в мир.");
    StorageRadius=Number("StorageRadius",20,1,100);SupplyRadius=Number("SupplyRadius",20,1,100);Rescan=Number("RescanIntervalSeconds",2,0.5f,30);
    RelayLink=Number("RelayLinkRange",50,1,100);RelayStorage=Number("RelayStorageRadius",20,1,100);RelaySupply=Number("RelaySupplyRadius",20,1,100);
    RelayLink.SettingChanged+=SettingsChanged;RelayStorage.SettingChanged+=SettingsChanged;RelaySupply.SettingChanged+=SettingsChanged;
@@ -53,7 +54,7 @@ namespace RunicStorageNetwork {
    foreach(var entry in new[]{AllowedBuildTools,DeniedBuildTools,DeniedPieceComponents})entry.SettingChanged+=BuildToolsChanged;
    DebugLogging=Config.Bind("Diagnostics","DebugLogging",false,"Detailed transaction diagnostics without inventory dumps.");
    Supply.SettingChanged+=SettingsChanged;StorageRadius.SettingChanged+=SettingsChanged;SupplyRadius.SettingChanged+=SettingsChanged;Rescan.SettingChanged+=SettingsChanged;
-   Info("0.8.1; Valheim="+global::Version.CurrentVersion+" Unity="+Application.unityVersion+" BepInEx="+typeof(BaseUnityPlugin).Assembly.GetName().Version+" Jotunn="+typeof(PieceManager).Assembly.GetName().Version);
+   Info("0.8.2 unloaded-network experiment; Valheim="+global::Version.CurrentVersion+" Unity="+Application.unityVersion+" BepInEx="+typeof(BaseUnityPlugin).Assembly.GetName().Version+" Jotunn="+typeof(PieceManager).Assembly.GetName().Version);
    RsnLocalization.Add();
    try {
     string path=Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),"Assets","rsn_core_windows");
@@ -77,7 +78,7 @@ namespace RunicStorageNetwork {
     codexPrefab=RunicCodexItem.Register(bundle);
     terminalPrefab=TerminalPiece.Register(bundle);
     PrefabManager.OnVanillaPrefabsAvailable+=CheckIds;
-    harmony=new Harmony(Guid);Patches.Install(harmony);
+    harmony=new Harmony(Guid);Patches.Install(harmony);UnloadedNetworks.Install(harmony);
     gameObject.AddComponent<Transport>();
     gameObject.AddComponent<NetworkSystem>();
     gameObject.AddComponent<NetworkTerminal>();
@@ -87,9 +88,9 @@ namespace RunicStorageNetwork {
    Info("Supply="+Enabled+" storage="+StorageRadius.Value+" supply="+SupplyRadius.Value+" interval="+Rescan.Value);
   }
   void Start(){try{if(harmony!=null)Integrations.Install(harmony);}catch(Exception e){Disable("Integration API mismatch");Error("integrations",e);}}
-  void SettingsChanged(object sender,EventArgs e){Info("Applied configuration: supply="+Enabled+" storage="+StorageRadius.Value+" supplyRadius="+SupplyRadius.Value+" relayLink="+RelayLink.Value+" rescan="+Rescan.Value);Topology.Dirty();}
+  void SettingsChanged(object sender,EventArgs e){Info("Applied configuration: supply="+Enabled+" storage="+StorageRadius.Value+" supplyRadius="+SupplyRadius.Value+" relayLink="+RelayLink.Value+" rescan="+Rescan.Value);UnloadedNetworks.SettingsChanged();Topology.Dirty();}
   // The coordinator validates every source against these lists, so the server copy decides.
-  void ContainersChanged(object sender,EventArgs e){ContainerPolicy.Invalidate();Stockroom.ClearObservations();foreach(var core in Core.Live)if(core)core.Invalidate();Topology.Dirty();}
+  void ContainersChanged(object sender,EventArgs e){ContainerPolicy.Invalidate();UnloadedNetworks.SettingsChanged();Stockroom.ClearObservations();foreach(var core in Core.Live)if(core)core.Invalidate();Topology.Dirty();}
   // The coordinator validates every placement against these lists, so the server copy decides.
   void BuildToolsChanged(object sender,EventArgs e){BuildToolPolicy.Invalidate();Topology.Dirty();}
   void RegisterRelay(){

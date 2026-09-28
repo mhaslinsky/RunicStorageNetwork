@@ -156,7 +156,7 @@ namespace RunicStorageNetwork {
    reason="unloaded";var v=R.View(c);if(!c||!R.Valid(v)||!v.IsOwner())return false;
    reason=ContainerPolicy.Reason(R.Id(c.gameObject));if(reason!=null)return false;
    reason="not player built";var piece=c.GetComponent<Piece>();if(!piece||!piece.IsPlacedByPlayer())return false;
-   reason="unconfirmed loaded area";if(!ZNetScene.instance.IsAreaReady(c.transform.position))return false;
+   reason="unconfirmed loaded area";if(!UnloadedNetworks.CanUseUnloaded(c)&&!ZNetScene.instance.IsAreaReady(c.transform.position))return false;
    reason="moving/private";if(c.m_privacy!=Container.PrivacySetting.Public||c.m_wagon||c.m_rootObjectOverride||c.GetComponentInParent<Ship>()||c.GetComponentInParent<Rigidbody>())return false;
    reason="access denied";if(!(bool)R.Call(c,"CheckAccess",new[]{typeof(long)},op.PlayerId)||!Access.Ward(c.transform.position,op.PlayerId))return false;
    reason="inventory unavailable";if(c.GetInventory()==null)return false;

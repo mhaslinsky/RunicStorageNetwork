@@ -29,8 +29,9 @@ namespace RunicStorageNetwork {
   internal static void Tick(){
    if(!target||!target.Valid||!player||player!=Player.m_localPlayer||requestedFrame<Time.frameCount-1){Clear();return;}
    try {
+    if(UnloadedNetworks.Enabled){Topology.Refresh();UnloadedNetworks.Request(Core.Choose(target.transform.position,actor));}
     float now=Time.unscaledTime;
-    // Read the graph that NetworkSystem already refreshed; never trigger another refresh here.
+    // Normal mode uses NetworkSystem's snapshot; the experiment refreshes only on demand.
     var graph=Topology.ForActor(actor);
     var root=graph.Nodes.TryGetValue(target.Id,out var node)&&graph.Roots.TryGetValue(node.Network,out var rootId)?Topology.Member(rootId)?.GetComponent<Core>():null;
     if(core!=root||revision!=Topology.DisplayRevision){core=root;revision=Topology.DisplayRevision;count.Reset();nextCount=nextText=0;}

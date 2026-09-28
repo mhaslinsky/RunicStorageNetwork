@@ -131,4 +131,14 @@ if($Tests){
  if($LASTEXITCODE -ne 0){throw 'Terminal runtime test compilation failed'}
  & $terminalProbe
  if($LASTEXITCODE -ne 0){throw 'Terminal runtime tests failed'}
+ $offlineProbe=Join-Path $Output 'UnloadedNetworkRuntimeTests.exe'
+ $offlineRsp=Join-Path $Output 'UnloadedNetworkRuntimeTests.rsp'
+ $offlineLines=@('/nologo','/nostdlib+','/langversion:9','/target:exe','/define:UNLOADED_NETWORK_RUNTIME_TESTS',('/out:"'+$offlineProbe+'"'))
+ $offlineLines+=@($refs | Select-Object -Unique | ForEach-Object {'/reference:"'+$_+'"'})
+ $offlineLines+=@('src\UnloadedNetworks.cs','tests\UnloadedNetworkRuntimeTests.cs' | ForEach-Object {'"'+(Join-Path $root $_)+'"'})
+ [IO.File]::WriteAllLines($offlineRsp,$offlineLines)
+ & "$editor\NetCoreRuntime\dotnet.exe" "$editor\DotNetSdkRoslyn\csc.dll" "@$offlineRsp"
+ if($LASTEXITCODE -ne 0){throw 'Unloaded network runtime test compilation failed'}
+ & $offlineProbe
+ if($LASTEXITCODE -ne 0){throw 'Unloaded network runtime tests failed'}
 }

@@ -1,5 +1,15 @@
 # Runic Storage Network
 
+> **0.8.2 experimental local build / экспериментальная локальная сборка**
+>
+> Optional unloaded-network support is available in single player. It is **disabled by default** and may cause errors, including inventory problems. Back up the world before testing. In `BepInEx/config/local.runicstoragenetwork.cfg`, set `[Experimental]` → `ExperimentalUnloadedNetworks = true`, then reload the world. Set it back to `false` and reload to return to normal operation. Multiplayer continues to use normal loaded-area networking.
+>
+> Экспериментальная работа с выгруженной сетью доступна в одиночной игре и **выключена по умолчанию**. Возможны ошибки, в том числе с инвентарём. Перед тестом сделайте резервную копию мира. В `BepInEx/config/local.runicstoragenetwork.cfg`, в разделе `[Experimental]`, установите `ExperimentalUnloadedNetworks = true` и перезайдите в мир. Для отключения верните `false` и перезайдите. В мультиплеере сохраняется обычный режим работы с загруженными объектами.
+>
+> Both vanilla and eligible modded storage use the existing container filters. If an inventory cannot be read and saved without changing its data, offline access is refused. Containers with custom storage behaviour still need individual testing. First access may take several frames while the index is prepared. This build has not been verified in a running game.
+>
+> Ванильные и модовые сундуки используют существующие фильтры. Если содержимое нельзя прочитать и сохранить без изменений, удалённый доступ отклоняется. Хранилища с собственной логикой требуют отдельной проверки. При первом обращении подготовка индекса может занять несколько кадров. Сборка ещё не проверена в запущенной игре.
+
 [English](#english) | [Русский](#русский)
 
 [Report a bug / Сообщить об ошибке](https://github.com/rerit33/RunicStorageNetwork/issues/new/choose) · [Changelog (EN)](https://github.com/rerit33/RunicStorageNetwork/blob/main/CHANGELOG_EN.md) · [История изменений (RU)](https://github.com/rerit33/RunicStorageNetwork/blob/main/CHANGELOG.md)
@@ -67,7 +77,7 @@ By default, chests connect within **20 m** of a node. Crafting stations and buil
 
 Requires **BepInExPack Valheim** and **Jötunn**. For multiplayer, install the same version of the mod and its required dependencies on the server and every player's client.
 
-The network works with stationary containers built by players in loaded areas of the world, including containers added by other mods. Remote storage in unloaded areas is not supported. Backpacks, tombstones, ship and cart storage, and personal chests are not connected.
+By default, the network works with stationary containers built by players in loaded areas of the world, including containers added by other mods. This experimental build can also access eligible unloaded storage in single player when the option described above is enabled. Backpacks, tombstones, ship and cart storage, and personal chests are not connected.
 
 Machines that consume or fire their contents stay out of the network by default. The network does not draw crafting materials from the obliterator. Smelters, kilns, cooking stations, fermenters, beehives, sap collectors, ballistae and catapults are excluded on the same rule, including modded equivalents built on the same components.
 
@@ -174,7 +184,7 @@ Runic Storage Network объединяет сундуки базы в сеть �
 
 Требуются **BepInExPack Valheim** и **Jötunn**. Для совместной игры установите одинаковую версию мода и необходимые зависимости на сервере и у всех игроков.
 
-Сеть работает со стационарными хранилищами, построенными игроками, в загруженной области мира, включая хранилища из других модов. Доступ к удалённым выгруженным складам не поддерживается. Рюкзаки, надгробия, корабельные трюмы, повозки и личные сундуки не подключаются.
+По умолчанию сеть работает со стационарными хранилищами, построенными игроками, в загруженной области мира, включая хранилища из других модов. В этой экспериментальной сборке можно также использовать подходящие выгруженные хранилища в одиночной игре, включив описанную выше настройку. Рюкзаки, надгробия, корабельные трюмы, повозки и личные сундуки не подключаются.
 
 Устройства, которые расходуют или расстреливают своё содержимое, по умолчанию в сеть не входят. Сеть не забирает материалы для крафта из уничтожителя. По тому же правилу исключаются плавильни, углевыжигательные печи, очаги, бродильни, ульи, сокосборники, баллисты и катапульты, в том числе их аналоги из других модов, собранные на тех же компонентах.
 

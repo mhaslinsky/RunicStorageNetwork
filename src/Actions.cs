@@ -71,7 +71,7 @@ namespace RunicStorageNetwork {
   internal static Operation Create(Player p,Core core,bool build,string target,int quality,int multiplier){return new Operation{Id=System.Guid.NewGuid().ToString("N"),Target=target,Build=build,Quality=quality,Multiplier=multiplier,Actor=p.GetZDOID(),Station=build?ZDOID.None:R.View(p.GetCurrentCraftingStation()).GetZDO().m_uid,Core=core.Id,Network=core.GetComponent<NetworkMember>().SavedNetwork,Peer=ZNet.GetUID(),PlayerId=p.GetPlayerID()};}
   internal static bool Propose(Pending pending,List<Debit> preview){
    var root=Operation.CoreObject(pending.Op.Core);var network=root?root.GetComponent<NetworkMember>().Network:"";
-   pending.Op.Nodes=Topology.Members.Where(m=>m&&m.Valid&&m.Network==network).Select(m=>m.View.GetZDO().m_uid).Distinct().ToArray();
+   pending.Op.Nodes=Topology.Graph.Nodes.Values.Where(n=>n.Network==network).Select(n=>Topology.Member(n.Id)).Where(m=>m&&m.Valid).Select(m=>m.View.GetZDO().m_uid).Distinct().ToArray();
    if(pending.Op.Nodes.Length==0||pending.Op.Nodes.Length>4096)return false;
    pending.Op.Sources=SourceSelection.Sources(preview);if(pending.Op.Sources==null)return false;
    pending.Op.PlayerStock=Stockroom.Snapshot(pending.Player.GetInventory(),"player",pending.Op.Needs,false);return true;

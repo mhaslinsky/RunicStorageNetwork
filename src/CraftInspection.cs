@@ -8,6 +8,7 @@ namespace RunicStorageNetwork {
  // Separate read-only owner queries from Prepare/Commit. Selecting an
  // incomplete recipe still refreshes every one of its ingredients.
  internal static class CraftInspection {
+  internal static Func<ZDOID,Container> FindContainer=id=>ZNetScene.instance.FindInstance(id)?.GetComponent<Container>();
   sealed class Source {internal string Key;internal long Owner;internal ZDOID Id;internal float Sent,FirstSent=-1;internal bool Delivered,Deferred;}
   static Operation operation;
   static Recipe recipe;static ItemDrop.ItemData upgrade;
@@ -68,7 +69,7 @@ namespace RunicStorageNetwork {
    if(!op.ReadRequirements(out _)||!RemoteContext.Actor(op.Actor,sender,op.PlayerId,out _,out _))return;
    var context=new RemoteContext(op);
    for(int i=0;i<count;i++){
-    var id=p.ReadZDOID();string key=R.Key(id);var container=ZNetScene.instance.FindInstance(id)?.GetComponent<Container>();
+    var id=p.ReadZDOID();string key=R.Key(id);var container=FindContainer(id);
     // An unreadable source is unknown, not empty. No reply lets the bounded
     // retry defer it without changing counts.
     if(!context.OwnerSource(container,out _,ownLease:true))continue;

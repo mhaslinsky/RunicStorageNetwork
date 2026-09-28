@@ -95,7 +95,7 @@ namespace RunicStorageNetwork {
    string response=__originalMethod.Name.Replace("Request"," ").Contains("Open")?"RPC_OpenResponse":__originalMethod.Name.Contains("Stack")?"RPC_StackResponse":"RPC_TakeAllResponse";
    R.View(__instance).InvokeRPC(uid,response,false);return false;
   }
-  static bool Owner(ZDO __instance,long uid)=>!Transport.Reserved(__instance)||__instance.GetOwner()==uid;
+  static bool Owner(ZDO __instance,long uid)=>!UnloadedNetworks.KeepOwner(__instance,uid)&&(!Transport.Reserved(__instance)||__instance.GetOwner()==uid);
   static bool RemoveBuilding(WearNTear __instance)=>!Transport.Reserved(R.View(__instance)?.GetZDO());
   static bool RelayRefund(Piece __instance)=>!__instance.GetComponent<Relay>()||!R.Valid(R.View(__instance))||!R.View(__instance).GetZDO().GetBool("rsn_free_relay",false);
   static IEnumerable<CodeInstruction> CraftIL(IEnumerable<CodeInstruction> instructions){

@@ -69,6 +69,20 @@ The script loads these defaults; explicit parameters take priority. The `.local`
 
 `RunicStorageNetwork.csproj` is available for IDE use. Supply `EditorData`, `ValheimManaged` and `BepInExPath` as MSBuild properties or in an ignored `.local\Build.props` file. The tested compilation path is `tools\Compile.ps1`.
 
+## Unloaded-network experiment
+
+On `experiment/unloaded-networks`, configure the local paths above, then run:
+
+```powershell
+.\tools\BuildUnloadedExperiment.ps1 -BasePackage 'C:\Path\To\RunicStorageNetwork-0.8.1.zip'
+```
+
+This compiles the DLL, runs isolated tests, reuses the verified 0.8.1 assets and validates a six-file local package at `dist/RunicStorageNetwork-0.8.2-unloaded-experiment.zip`. It neither installs nor publishes the package. `UnloadedNetworkRuntimeTests.exe` uses game stand-ins to exercise cold-start discovery, container eligibility, deferred work, live-instance handover, reservations and inventory save guards.
+
+The `[Experimental] ExperimentalUnloadedNetworks` setting defaults to `false`, is sampled when entering the world, and only operates in single player. It indexes saved object metadata once, then creates inactive adapters for requested inventories. It does not simulate distant creatures, factories or entire zones. Containers use the existing allow/deny rules. An inventory must survive an unchanged save/load round trip before remote writes are allowed; custom storage formats and older inventory serialization may require visiting the chest first. This is not proof of compatibility with every container mod.
+
+Manual validation on a backed-up test world: enter near the far end of a relay chain without visiting its core, inspect and craft with distant resources, withdraw through a Storage Codex, return to the chests and verify the remaining counts, then save and re-enter. Repeat with a modded container, an interrupted/broken relay chain, and the option disabled. Runtime and performance results remain unverified until these checks are performed in game.
+
 ## Repository contents
 
 - `src/`: plugin and shared logic.
