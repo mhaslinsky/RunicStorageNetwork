@@ -1,6 +1,6 @@
 # Runic Storage Network
 
-> **0.8.5 experimental local build / экспериментальная локальная сборка**
+> **Optional experimental feature / Необязательная экспериментальная функция**
 >
 > Optional unloaded-network support is available for single-player and multiplayer testing. It is **disabled by default** and may cause errors, including inventory problems. Back up the world before testing. Install this version on the host or dedicated server and all clients. In each installation's `BepInEx/config/local.runicstoragenetwork.cfg`, set `[Experimental]` → `ExperimentalUnloadedNetworks = true`, then fully restart each game client and the host/dedicated server. Set it back to `false` and restart to return to normal operation. If the server has the option disabled, clients use normal loaded-area networking.
 >
@@ -77,7 +77,7 @@ By default, chests connect within **20 m** of a node. Crafting stations and buil
 
 Requires **BepInExPack Valheim** and **Jötunn**. For multiplayer, install the same version of the mod and its required dependencies on the server and every player's client.
 
-By default, the network works with stationary containers built by players in loaded areas of the world, including containers added by other mods. This experimental build can also access eligible unloaded storage when the option described above is enabled. Backpacks, tombstones, ship and cart storage, and personal chests are not connected.
+By default, the network works with stationary containers built by players in loaded areas of the world, including containers added by other mods. Enable the experimental option described above to also access eligible unloaded storage. Backpacks, tombstones, ship and cart storage, and personal chests are not connected.
 
 Machines that consume or fire their contents stay out of the network by default. The network does not draw crafting materials from the obliterator. Smelters, kilns, cooking stations, fermenters, beehives, sap collectors, ballistae and catapults are excluded on the same rule, including modded equivalents built on the same components.
 
@@ -188,7 +188,7 @@ Runic Storage Network объединяет сундуки базы в сеть �
 
 Требуются **BepInExPack Valheim** и **Jötunn**. Для совместной игры установите одинаковую версию мода и необходимые зависимости на сервере и у всех игроков.
 
-По умолчанию сеть работает со стационарными хранилищами, построенными игроками, в загруженной области мира, включая хранилища из других модов. В этой экспериментальной сборке можно также использовать подходящие выгруженные хранилища, включив описанную выше настройку. Рюкзаки, надгробия, корабельные трюмы, повозки и личные сундуки не подключаются.
+По умолчанию сеть работает со стационарными хранилищами, построенными игроками, в загруженной области мира, включая хранилища из других модов. Описанная выше экспериментальная настройка позволяет также использовать подходящие выгруженные хранилища. Рюкзаки, надгробия, корабельные трюмы, повозки и личные сундуки не подключаются.
 
 Устройства, которые расходуют или расстреливают своё содержимое, по умолчанию в сеть не входят. Сеть не забирает материалы для крафта из уничтожителя. По тому же правилу исключаются плавильни, углевыжигательные печи, очаги, бродильни, ульи, сокосборники, баллисты и катапульты, в том числе их аналоги из других модов, собранные на тех же компонентах.
 

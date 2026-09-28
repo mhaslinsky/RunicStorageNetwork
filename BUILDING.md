@@ -71,7 +71,7 @@ The script loads these defaults; explicit parameters take priority. The `.local`
 
 ## Unloaded-network experiment
 
-On `experiment/unloaded-networks`, configure the local paths above, then run:
+The optional unloaded-network feature is included in `main` and disabled by default. To build a local test package, configure the paths above, then run:
 
 ```powershell
 .\tools\BuildUnloadedExperiment.ps1 -BasePackage 'C:\Path\To\RunicStorageNetwork-0.8.1.zip'

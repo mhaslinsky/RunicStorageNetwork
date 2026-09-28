@@ -1,32 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.8.6
 
 - Fixed the storage window ignoring screen resolution and the game's **Scale GUI** setting. Thanks to [hoxton314](https://github.com/hoxton314) for the contribution.
-
-## 0.8.5
-
-- Isolated the unloaded-network experiment from normal storage and crafting when disabled.
-- Normal network supply remains available if the experimental feature cannot start.
-- Changing the experimental setting now requires a full restart of the game or dedicated server.
-
-## 0.8.4
-
-- Added experimental multiplayer support for distant networks: use connected storage even when no player is near the core or chests. Enable the option on the server and all clients.
-- Distant resource counts update while the network is in use, including changes made by other players.
-- Distant chests can become available again after their previous owner leaves the server, provided no unfinished resource transaction is holding them.
-
-## 0.8.3
-
-- Fixed the experimental mode reporting connected chests as unloaded and blocking resource access after moving away from the core.
-- Fixed distant networks being missed when entering a saved world without visiting the core first.
-
-## 0.8.2
-
-- Added an experimental single-player option to use networks outside the player's loaded area, including after entering the world far from the core.
-- The option also supports eligible modded containers that use standard inventory storage.
-- With the option enabled, storage updates are processed when the network is used instead of periodically recounting idle storage.
-- The option is disabled by default and may cause errors, including inventory problems. Back up your world before enabling it and reload the world after changing the setting.
+- Added an experimental option to use connected storage outside the player's loaded area in single-player and multiplayer, including when entering a world far from the core.
+- In experimental mode, distant resource counts update while the network is in use, including changes made by other players.
+- The experimental option is disabled by default and may cause inventory errors. Back up your world before testing; changing the option requires a full restart of the game or dedicated server.
 
 ## 0.8.1
 
