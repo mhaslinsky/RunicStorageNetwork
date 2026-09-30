@@ -12,7 +12,7 @@ using Jotunn.Utils;
 using UnityEngine;
 
 namespace RunicStorageNetwork {
- [BepInPlugin(Guid, "Runic Storage Network", "0.8.7")]
+ [BepInPlugin(Guid, "Runic Storage Network", "0.8.8")]
  [BepInDependency("com.jotunn.jotunn", "2.30.2")]
  [BepInDependency("com.maxsch.valheim.MultiUserChest",BepInDependency.DependencyFlags.SoftDependency)]
  [NetworkCompatibility(CompatibilityLevel.EveryoneMustHaveMod,VersionStrictness.Patch)]
@@ -81,6 +81,7 @@ namespace RunicStorageNetwork {
     harmony=new Harmony(Guid);Patches.Install(harmony);
     if(ExperimentalUnloadedNetworks.Value)UnloadedNetworks.Install();
     gameObject.AddComponent<Transport>();
+    if(UnloadedNetworks.Installed)gameObject.AddComponent<ApiRuntime>();
     gameObject.AddComponent<NetworkSystem>();
     gameObject.AddComponent<NetworkTerminal>();
     new Terminal.ConsoleCommand("rsn_status",RsnLocalization.Text("diag_help"),args=>Topology.Diagnose(args.Context));

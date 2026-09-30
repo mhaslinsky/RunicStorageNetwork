@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.8
+
+- Added an experimental API for other mods to read network resources and consume materials for their machines. Requires experimental distant storage to be enabled.
+- Machine requests automatically recheck the network and resource counts after temporary failures, and repeated requests do not consume materials twice.
+
 ## 0.8.7
 
 - Fixed chests remaining or reappearing after destruction in multiplayer with experimental distant storage enabled, allowing building materials to be collected repeatedly.

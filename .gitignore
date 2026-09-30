@@ -9,6 +9,14 @@
 !/BUILDING.md
 !/PUBLISHING.md
 !/API_PROPOSAL_RU.md
+!/API.md
+!/API_IMPLEMENTATION_RU.md
+!/examples/
+/examples/*
+!/examples/ApiTestMod/
+/examples/ApiTestMod/*
+!/examples/ApiTestMod/*.cs
+!/examples/ApiTestMod/README.md
 !/thunderstore.toml
 !/hexium.toml
 !/manifest.json
@@ -23,6 +31,7 @@
 /tools/*
 !/tools/Compile.ps1
 !/tools/BuildUnloadedExperiment.ps1
+!/tools/BuildApiPreview.ps1
 !/tools/ValidateRelease.ps1
 !/tools/TestReleaseValidation.ps1
 !/tools/BuildIcons.cs

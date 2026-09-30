@@ -15,7 +15,7 @@ namespace RunicStorageNetwork {
   internal ZDO Data;internal byte[] Expected;internal bool Read,SavedAfterLoad;
   internal uint FailedRevision;internal bool ReportedFailure;
  }
- internal static class UnloadedNetworks {
+ internal static partial class UnloadedNetworks {
   static readonly HashSet<int> chestTypes=new HashSet<int>();
   static readonly HashSet<int> nodeTypes=new HashSet<int>(new[]{"RSN_NetworkCore","RSN_RunicRelay"}.Select(s=>s.GetStableHashCode()));
   static readonly Dictionary<ZDOID,ZDO> nodes=new Dictionary<ZDOID,ZDO>();

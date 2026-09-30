@@ -25,7 +25,7 @@ if(!$Output){$Output=Join-Path $root 'artifacts\compile'}
 New-Item -ItemType Directory -Force $Output | Out-Null
 $refs=@(Get-ChildItem "$editor\MonoBleedingEdge\lib\mono\4.7.2-api" -Filter '*.dll' | ForEach-Object FullName)
 $refs+=@(Get-ChildItem "$editor\MonoBleedingEdge\lib\mono\4.7.2-api\Facades" -Filter '*.dll' | ForEach-Object FullName)
-if($Tests){$files=@((Join-Path $root 'src\Planner.cs'),(Join-Path $root 'src\NetworkGraph.cs'),(Join-Path $root 'src\TranslationCatalog.cs'),(Join-Path $root 'src\IncrementalCount.cs'),(Join-Path $root 'src\SourceGate.cs'),(Join-Path $root 'src\Recovery.cs'),(Join-Path $root 'src\StockCatalog.cs'),(Join-Path $root 'src\ResourceCatalog.cs'),(Join-Path $root 'src\TerminalRules.cs'),(Join-Path $root 'src\ContainerRules.cs'),(Join-Path $root 'src\BuildToolRules.cs'),(Join-Path $root 'src\NameIndex.cs'),(Join-Path $root 'src\NetworkLabels.cs'))+@(Get-ChildItem "$root\tests" -Filter '*.cs' | ForEach-Object FullName);$target='exe';$name='PlannerTests.exe'}else{
+if($Tests){$files=@((Join-Path $root 'src\ApiTypes.cs'),(Join-Path $root 'src\ApiRules.cs'),(Join-Path $root 'src\ApiPayment.cs'),(Join-Path $root 'src\Planner.cs'),(Join-Path $root 'src\NetworkGraph.cs'),(Join-Path $root 'src\TranslationCatalog.cs'),(Join-Path $root 'src\IncrementalCount.cs'),(Join-Path $root 'src\SourceGate.cs'),(Join-Path $root 'src\Recovery.cs'),(Join-Path $root 'src\StockCatalog.cs'),(Join-Path $root 'src\ResourceCatalog.cs'),(Join-Path $root 'src\TerminalRules.cs'),(Join-Path $root 'src\ContainerRules.cs'),(Join-Path $root 'src\BuildToolRules.cs'),(Join-Path $root 'src\NameIndex.cs'),(Join-Path $root 'src\NetworkLabels.cs'))+@(Get-ChildItem "$root\tests" -Filter '*.cs' | ForEach-Object FullName);$target='exe';$name='PlannerTests.exe'}else{
  $refs+=@(Get-ChildItem $game -Filter 'Unity*.dll' | ForEach-Object FullName)
  $refs+=@("$game\assembly_valheim.dll","$game\assembly_utils.dll","$game\assembly_guiutils.dll","$game\Assembly-CSharp.dll","$game\Splatform.dll","$game\gui_framework.dll","$game\SoftReferenceableAssets.dll","$profile\core\BepInEx.dll","$profile\core\0Harmony.dll","$profile\plugins\ValheimModding-Jotunn\Jotunn.dll")
  $files=@(Get-ChildItem "$root\src" -Filter '*.cs' | ForEach-Object FullName);$target='library';$name='RunicStorageNetwork.dll'
@@ -145,4 +145,16 @@ if($Tests){
  if($LASTEXITCODE -ne 0){throw 'Unloaded network runtime test compilation failed'}
  & $offlineProbe
  if($LASTEXITCODE -ne 0){throw 'Unloaded network runtime tests failed'}
+
+ # Production API ownership code, real packet parser and protocol with game stand-ins.
+ $apiProbe=Join-Path $Output 'ApiOwnershipRuntimeTests.exe'
+ $apiRsp=Join-Path $Output 'ApiOwnershipRuntimeTests.rsp'
+ $apiLines=@('/nologo','/nostdlib+','/langversion:9','/target:exe','/nowarn:0649','/define:API_OWNERSHIP_RUNTIME_TESTS',('/out:"'+$apiProbe+'"'))
+ $apiLines+=@($refs | Select-Object -Unique | ForEach-Object {'/reference:"'+$_+'"'})
+ $apiLines+=@('src\ApiOwnership.cs','src\ApiWire.cs','src\ApiTypes.cs','src\ApiRules.cs','src\Planner.cs','src\SourceGate.cs','tests\ApiOwnershipRuntimeTests.cs' | ForEach-Object {'"'+(Join-Path $root $_)+'"'})
+ [IO.File]::WriteAllLines($apiRsp,$apiLines)
+ & "$editor\NetCoreRuntime\dotnet.exe" "$editor\DotNetSdkRoslyn\csc.dll" "@$apiRsp"
+ if($LASTEXITCODE -ne 0){throw 'API ownership test compilation failed'}
+ & $apiProbe
+ if($LASTEXITCODE -ne 0){throw 'API ownership tests failed'}
 }

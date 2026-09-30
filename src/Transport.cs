@@ -84,6 +84,13 @@ namespace RunicStorageNetwork {
   readonly Dictionary<string,ServerJob> jobs=new Dictionary<string,ServerJob>();
   internal static readonly Dictionary<Inventory,Lease> Leases=new Dictionary<Inventory,Lease>();
   readonly SourceGate sourceGate=new SourceGate();
+  internal SourceGate SharedSourceGate=>sourceGate;
+  internal bool PlayerWaiting(IEnumerable<string> keys)=>queued.Any(q=>q.Op.Sources.Intersect(keys).Any());
+  internal static Func<Inventory,bool> ExtraInventoryLock;
+  internal static Func<ItemDrop.ItemData,bool> ExtraItemLock;
+  internal static Func<int> ExtraOperations;
+  internal int OccupiedOperations=>jobs.Count+queued.Count+releasing.Count;
+  internal static Func<ZDO,long,bool?> ExtraOwnerRule;
   sealed class Queued {internal Operation Op;internal float Since;}
   sealed class Releasing {internal long Owner;internal float Since,LastSend;internal bool Warned,Rollback;}
   sealed class Refusal {internal Operation Op;internal string Reason;}
@@ -127,7 +134,7 @@ namespace RunicStorageNetwork {
    if(jobs.TryGetValue(op.Id,out var existing)){if(existing.Op.Peer==sender)Replay(existing);return;}
    if(ended.Contains(op.Id))return;
    var inQueue=queued.FirstOrDefault(q=>q.Op.Id==op.Id);if(inQueue!=null){if(inQueue.Op.Peer==sender)SendProgress(inQueue.Op,true);return;}
-   if(jobs.Count+queued.Count+releasing.Count>=256||jobs.Values.Any(j=>j.Op.Peer==sender)||queued.Any(q=>q.Op.Peer==sender)){Reject(op,"previous operation pending");return;}
+   if(OccupiedOperations+(ExtraOperations?.Invoke()??0)>=256||jobs.Values.Any(j=>j.Op.Peer==sender)||queued.Any(q=>q.Op.Peer==sender)){Reject(op,"previous operation pending");return;}
    if(!RemoteContext.Actor(op.Actor,sender,op.PlayerId,out _,out string why)){Reject(op,why);return;}
    queued.Add(new Queued{Op=op,Since=Time.unscaledTime});SendProgress(op,true);
   }
@@ -346,8 +353,8 @@ namespace RunicStorageNetwork {
   void Reject(Operation op,string reason){ended.Add(op.Id);terminal[op.Id]=new Refusal{Op=op,Reason=reason};Plugin.Debug(op.Id+" refused: "+reason+" peer="+op.Peer+" actor="+R.Key(op.Actor)+" core="+R.Key(op.Core)+" network="+op.Network+" target="+op.Target);SendRefusal(op,reason);}
   void SendRefusal(Operation op,string reason){var q=Header(op.Id);q.Write(reason);Send(op.Peer,"refused",q);}
   void Refused(long sender,ZPackage p){if(sender!=Server)return;string id=p.ReadString(),why=p.ReadString();CraftPreparation.Refused(id,why);Actions.Refused(id,why);TerminalTransfer.Refused(id,why);}
-  internal static bool Locked(Inventory inv)=>InternalMutation==0&&inv!=null&&(Leases.ContainsKey(inv)||Actions.Locked(inv)||CraftPreparation.Locked(inv));
-  internal static bool LockedItem(ItemDrop.ItemData item)=>InternalMutation==0&&(Leases.Keys.Any(i=>i.ContainsItem(item))||(Actions.Waiting?.Player&&Actions.Waiting.Player.GetInventory().ContainsItem(item))||CraftPreparation.LockedItem(item));
+  internal static bool Locked(Inventory inv)=>InternalMutation==0&&inv!=null&&(Leases.ContainsKey(inv)||Actions.Locked(inv)||CraftPreparation.Locked(inv)||(ExtraInventoryLock?.Invoke(inv)??false));
+  internal static bool LockedItem(ItemDrop.ItemData item)=>InternalMutation==0&&(Leases.Keys.Any(i=>i.ContainsItem(item))||(Actions.Waiting?.Player&&Actions.Waiting.Player.GetInventory().ContainsItem(item))||CraftPreparation.LockedItem(item)||(ExtraItemLock?.Invoke(item)??false));
   internal static bool Reserved(ZDO zdo,string except=null)=>zdo!=null&&((zdo.GetString("rsn_lease","")!=""&&zdo.GetString("rsn_lease","")!=except)||(Instance!=null&&ZNet.instance&&ZNet.instance.IsServer()&&Instance.sourceGate.Held(R.Key(zdo.m_uid),except)));
  }
 }
