@@ -4,6 +4,7 @@
 
 - Added an experimental API for other mods to read network resources and consume materials for their machines. Requires experimental distant storage to be enabled.
 - Machine requests automatically recheck the network and resource counts after temporary failures, and repeated requests do not consume materials twice.
+- Added GitHub Wiki guides for mod settings and API integration, and shortened the README's experimental-feature notice.
 
 ## 0.8.7
 

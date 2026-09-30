@@ -1,16 +1,12 @@
 # Runic Storage Network
 
-> **Optional experimental feature / Необязательная экспериментальная функция**
+> **Experimental:** Access to unloaded networks and the mod API is optional, disabled by default, and may cause errors.
 >
-> Optional unloaded-network support is available for single-player and multiplayer testing. It is **disabled by default** and may cause errors, including inventory problems. Back up the world before testing. Install this version on the host or dedicated server and all clients. In each installation's `BepInEx/config/local.runicstoragenetwork.cfg`, set `[Experimental]` → `ExperimentalUnloadedNetworks = true`, then fully restart each game client and the host/dedicated server. Set it back to `false` and restart to return to normal operation. If the server has the option disabled, clients use normal loaded-area networking.
->
-> Экспериментальная работа с выгруженной сетью доступна для тестирования в одиночной игре и мультиплеере и **выключена по умолчанию**. Возможны ошибки, в том числе с инвентарём. Перед тестом сделайте резервную копию мира. Установите эту версию у хоста или на выделенном сервере и у всех игроков. В каждой установке, в `BepInEx/config/local.runicstoragenetwork.cfg`, в разделе `[Experimental]`, установите `ExperimentalUnloadedNetworks = true`, затем полностью перезапустите игру у всех участников и сервер. Для отключения верните `false` и перезапустите. Если настройка выключена на сервере, клиенты используют обычную работу с загруженными объектами.
->
-> Both vanilla and eligible modded storage use the existing container filters. If an inventory cannot be read and saved without changing its data, offline access is refused. Containers with custom storage behaviour still need individual testing. On first access, allow time for the server to send the distant network. Multiplayer behaviour in this build has not been verified in a running game.
->
-> Ванильные и модовые сундуки используют существующие фильтры. Если содержимое нельзя прочитать и сохранить без изменений, удалённый доступ отклоняется. Хранилища с собственной логикой требуют отдельной проверки. При первом обращении нужно дождаться передачи данных дальней сети с сервера. Работа этой сборки в мультиплеере ещё не проверена в запущенной игре.
+> **Экспериментально:** Доступ к выгруженным сетям и API мода включается отдельно, по умолчанию выключен и может вызывать ошибки.
 
 [English](#english) | [Русский](#русский)
+
+[Settings (EN)](https://github.com/rerit33/RunicStorageNetwork/wiki/Configuration) · [Настройки (RU)](https://github.com/rerit33/RunicStorageNetwork/wiki/Configuration-RU) · [API for mod developers](https://github.com/rerit33/RunicStorageNetwork/wiki/API)
 
 [Report a bug / Сообщить об ошибке](https://github.com/rerit33/RunicStorageNetwork/issues/new/choose) · [Changelog (EN)](https://github.com/rerit33/RunicStorageNetwork/blob/main/CHANGELOG_EN.md) · [История изменений (RU)](https://github.com/rerit33/RunicStorageNetwork/blob/main/CHANGELOG.md)
 
@@ -58,7 +54,7 @@ Interact with a core (E with default controls) to give its network an optional n
 
 ### Ranges and recipes
 
-By default, chests connect within **20 m** of a node. Crafting stations and builders are supplied within **20 m**, and neighboring network nodes can connect over distances of up to **50 m**. These ranges can be changed in the mod configuration.
+By default, chests connect within **20 m** of a node. Crafting stations and builders are supplied within **20 m**, and neighboring network nodes can connect over distances of up to **50 m**. See [Configuration](https://github.com/rerit33/RunicStorageNetwork/wiki/Configuration) to change ranges and other settings.
 
 | Material | Core | Relay |
 |---|---:|---:|
@@ -77,35 +73,13 @@ By default, chests connect within **20 m** of a node. Crafting stations and buil
 
 Requires **BepInExPack Valheim** and **Jötunn**. For multiplayer, install the same version of the mod and its required dependencies on the server and every player's client.
 
-By default, the network works with stationary containers built by players in loaded areas of the world, including containers added by other mods. Enable the experimental option described above to also access eligible unloaded storage. Backpacks, tombstones, ship and cart storage, and personal chests are not connected.
+By default, the network works with stationary containers built by players in loaded areas of the world, including containers added by other mods. Enable the [experimental option](https://github.com/rerit33/RunicStorageNetwork/wiki/Configuration#experimental-distant-storage) to also access eligible unloaded storage. Backpacks, tombstones, ship and cart storage, and personal chests are not connected.
 
 Machines that consume or fire their contents stay out of the network by default. The network does not draw crafting materials from the obliterator. Smelters, kilns, cooking stations, fermenters, beehives, sap collectors, ballistae and catapults are excluded on the same rule, including modded equivalents built on the same components.
 
 Automatic eligibility does not guarantee compatibility with every modded container. Containers with custom inventory, saving or access behavior need separate compatibility testing.
 
-The `Containers` section of the configuration decides which containers take part:
-
-| Setting | Default | Effect |
-|---|---|---|
-| `AllowedContainers` | empty | Empty: every eligible container is connected. Filled: only the listed prefab names are connected. |
-| `DeniedContainers` | `piece_trashcan` | Prefab names that are never connected. |
-| `DeniedComponents` | machine components | A container is never connected when its prefab has one of these components. |
-
-Exclusion always wins over inclusion, so a container listed in both is excluded. Changes take effect without restarting the game. In multiplayer these settings are administrator-only and come from the server, so the server decides which containers the whole session uses.
-
-`rsn_status` in the console reports how many container types are supported and which are excluded, and the mod log lists them by name.
-
 Building draws on the network with any build tool, including hammers added by other mods. A tool takes part when the game gives it its own build menu, so nothing needs to be registered with this mod. Ordinary build pieces and planting can use stored resources. Serving trays can also draw food from connected storage. Terrain shaping uses inventory resources by default.
-
-The `Building` section of the configuration decides which tools take part:
-
-| Setting | Default | Effect |
-|---|---|---|
-| `AllowedBuildTools` | empty | Empty: every build tool qualifies. Filled: only the listed item prefabs build from the network. |
-| `DeniedBuildTools` | empty | Item prefabs that never build from the network. |
-| `DeniedPieceComponents` | `TerrainOp,TerrainModifier` | A piece is never supplied when its prefab has one of these components. |
-
-Exclusion wins over inclusion here too, and these settings are administrator-only, so the server decides for the session. The equipped tool must be allowed, even if it shares a build menu with another tool. Excluded actions still work normally with materials in your inventory. When you already carry enough materials, building does not wait for the network. Normal placement and crafting station requirements still apply.
 
 Do not enable multiple crafting-from-chests systems at the same time without checking compatibility. Back up your world and character before installing or updating the mod.
 
@@ -117,7 +91,7 @@ AI tools were used to develop the code, create concept art, and produce the 3D m
 
 Runic Storage Network disables its resource supply when it detects NearbyCrafting, AzuCraftyBoxes, DvergerAutomation, CraftFromContainers or CraftFromChests. Use one storage-supply system at a time.
 
-MultiUserChest and Quick Stack Store Sort Trash Restock are optional. The current integrations accept **MultiUserChest 0.6.2** and **Quick Stack 1.4.15**; other versions disable network supply until their integration is updated. With Quick Stack but without MultiUserChest, `AllowAreaStackingInMultiplayerWithoutMUC` must be disabled. These version checks do not guarantee compatibility with every mod combination.
+MultiUserChest and Quick Stack Store Sort Trash Restock are optional. The current integrations accept **MultiUserChest 0.6.2** and **Quick Stack 1.4.15**; other versions disable network supply until their integration is updated. See [Configuration](https://github.com/rerit33/RunicStorageNetwork/wiki/Configuration#diagnostics-and-compatibility) for the required Quick Stack setting. These version checks do not guarantee compatibility with every mod combination.
 
 ### Thanks for contributing
 
@@ -169,7 +143,7 @@ Runic Storage Network объединяет сундуки базы в сеть �
 
 ### Радиусы и рецепты
 
-По умолчанию сундуки подключаются в радиусе **20 м** от узла. Радиус снабжения станков и строителя — также **20 м**, а расстояние между соседними узлами связи — до **50 м**. Радиусы можно изменить в конфигурации мода.
+По умолчанию сундуки подключаются в радиусе **20 м** от узла. Радиус снабжения станков и строителя — также **20 м**, а расстояние между соседними узлами связи — до **50 м**. Радиусы и другие параметры описаны на странице [Настройки](https://github.com/rerit33/RunicStorageNetwork/wiki/Configuration-RU).
 
 | Материал | Ядро | Реле |
 |---|---:|---:|
@@ -188,35 +162,13 @@ Runic Storage Network объединяет сундуки базы в сеть �
 
 Требуются **BepInExPack Valheim** и **Jötunn**. Для совместной игры установите одинаковую версию мода и необходимые зависимости на сервере и у всех игроков.
 
-По умолчанию сеть работает со стационарными хранилищами, построенными игроками, в загруженной области мира, включая хранилища из других модов. Описанная выше экспериментальная настройка позволяет также использовать подходящие выгруженные хранилища. Рюкзаки, надгробия, корабельные трюмы, повозки и личные сундуки не подключаются.
+По умолчанию сеть работает со стационарными хранилищами, построенными игроками, в загруженной области мира, включая хранилища из других модов. [Экспериментальная настройка](https://github.com/rerit33/RunicStorageNetwork/wiki/Configuration-RU#экспериментальные-удалённые-хранилища) позволяет также использовать подходящие выгруженные хранилища. Рюкзаки, надгробия, корабельные трюмы, повозки и личные сундуки не подключаются.
 
 Устройства, которые расходуют или расстреливают своё содержимое, по умолчанию в сеть не входят. Сеть не забирает материалы для крафта из уничтожителя. По тому же правилу исключаются плавильни, углевыжигательные печи, очаги, бродильни, ульи, сокосборники, баллисты и катапульты, в том числе их аналоги из других модов, собранные на тех же компонентах.
 
 Автоматическое подключение не гарантирует совместимость со всеми модовыми хранилищами. Хранилища с нестандартной работой инвентаря, сохранений или прав доступа требуют отдельной проверки совместимости.
 
-Состав сети задаётся в разделе `Containers` конфигурации:
-
-| Параметр | По умолчанию | Действие |
-|---|---|---|
-| `AllowedContainers` | пусто | Пусто: подключаются все подходящие хранилища. Заполнено: подключаются только перечисленные префабы. |
-| `DeniedContainers` | `piece_trashcan` | Префабы, которые не подключаются никогда. |
-| `DeniedComponents` | компоненты устройств | Хранилище не подключается, если в его префабе есть один из этих компонентов. |
-
-Исключение всегда важнее включения: хранилище, указанное в обоих списках, остаётся отключённым. Изменения применяются без перезапуска игры. В совместной игре эти параметры доступны только администратору и приходят с сервера, поэтому состав хранилищ для всей сессии определяет сервер.
-
-Команда `rsn_status` в консоли показывает, сколько типов хранилищ поддерживается и сколько исключено, а журнал мода перечисляет их по именам.
-
 Строительство берёт ресурсы из сети любым строительным инструментом, включая молоты из других модов. Инструмент участвует, если игра даёт ему собственное меню построек, поэтому регистрировать его в этом моде не нужно. Обычные постройки и посадки могут использовать ресурсы хранилищ. Поднос также может брать еду из подключённых хранилищ. Изменение ландшафта по умолчанию использует ресурсы инвентаря.
-
-Состав инструментов задаётся в разделе `Building` конфигурации:
-
-| Параметр | По умолчанию | Действие |
-|---|---|---|
-| `AllowedBuildTools` | пусто | Пусто: подходит любой строительный инструмент. Заполнено: из сети строят только перечисленные префабы предметов. |
-| `DeniedBuildTools` | пусто | Префабы предметов, которые никогда не строят из сети. |
-| `DeniedPieceComponents` | `TerrainOp,TerrainModifier` | Постройка не снабжается, если в её префабе есть один из этих компонентов. |
-
-Исключение здесь также важнее включения, а сами параметры доступны только администратору, поэтому состав определяет сервер. Разрешён должен быть именно инструмент в руках, даже если его меню совпадает с меню другого инструмента. Исключённые действия продолжают работать с ресурсами инвентаря. Если нужных материалов в инвентаре достаточно, строительство не ждёт сеть. Обычные требования к размещению и верстаку сохраняются.
 
 Не включайте одновременно несколько систем крафта из сундуков без проверки совместимости. Перед установкой и обновлением делайте резервную копию мира и персонажа.
 
@@ -228,7 +180,7 @@ Runic Storage Network объединяет сундуки базы в сеть �
 
 Runic Storage Network отключает снабжение ресурсами при обнаружении NearbyCrafting, AzuCraftyBoxes, DvergerAutomation, CraftFromContainers или CraftFromChests. Используйте одну систему снабжения из хранилищ.
 
-MultiUserChest и Quick Stack Store Sort Trash Restock необязательны. Текущие интеграции допускают **MultiUserChest 0.6.2** и **Quick Stack 1.4.15**; с другими версиями снабжение отключается до обновления интеграции. При использовании Quick Stack без MultiUserChest параметр `AllowAreaStackingInMultiplayerWithoutMUC` должен быть выключен. Эти проверки версий не гарантируют совместимость с любой комбинацией модов.
+MultiUserChest и Quick Stack Store Sort Trash Restock необязательны. Текущие интеграции допускают **MultiUserChest 0.6.2** и **Quick Stack 1.4.15**; с другими версиями снабжение отключается до обновления интеграции. Требуемый параметр Quick Stack указан на странице [Настройки](https://github.com/rerit33/RunicStorageNetwork/wiki/Configuration-RU#диагностика-и-совместимость). Эти проверки версий не гарантируют совместимость с любой комбинацией модов.
 
 ### Благодарности
 

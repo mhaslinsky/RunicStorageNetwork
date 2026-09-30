@@ -6,7 +6,7 @@ The test **consumes real resources** from connected chests. Successful payments 
 
 ## Install
 
-1. Import `RunicStorageNetwork-0.8.8-api-preview.1.zip` into a separate test profile with the usual BepInEx and Jotunn dependencies.
+1. Install Runic Storage Network 0.8.8 or a compatible later version into a separate test profile with the usual BepInEx and Jotunn dependencies.
 2. Extract this archive's `plugins/RSN.ApiTest` into that profile's `BepInEx/plugins`. Keep the mod separate from the RSN directory.
 3. Set `ExperimentalUnloadedNetworks = true` in `local.runicstoragenetwork.cfg`, then fully restart the game.
 4. Build **API Test Consumer** under Hammer / Crafting within the supply radius of a core or connected relay. It looks like a workbench and costs one wood. Stand within 8 metres of it.

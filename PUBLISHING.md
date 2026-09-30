@@ -58,6 +58,14 @@ Hexium accepts Thunderstore-compatible archives and assumes BepInExPack_Valheim,
 
 After upload, the workflow sets Hexium's install location to **both client and server** and verifies the published version. A retry skips an existing version but still applies the install-location setting. If publication reports a connection error or succeeds before a later metadata step fails, inspect the package page before retrying; an accepted version must not be uploaded again.
 
+## API builds and GitHub Wiki
+
+For the 0.8.8 code-only release, `tools/BuildApiPreview.ps1 -Release` builds and validates `dist/RunicStorageNetwork-0.8.8.zip`, runs the isolated tests, and checks the installed game packet format. Without `-Release`, it creates a local preview archive instead. The script reuses the verified 0.8.1 visual assets and also builds a separate single-player test consumer. Do not include that test plugin in the main release ZIP.
+
+Wiki sources are versioned in this repository: `API.md` becomes Wiki page `API.md`; files in `docs/wiki/` retain their names. After updating them, clone/pull `git@github.com:rerit33/RunicStorageNetwork.wiki.git`, copy those files, review its diff, and commit/push its default branch. The Wiki must have an initial page created through GitHub before it can be cloned. Never force-push Wiki history or remove unrelated pages.
+
+Keep configuration details and the API guide on GitHub. Only the short experimental notice and documentation links belong in the packaged README; neither the Wiki files nor the API example are included in the six-file mod package.
+
 ## References
 
 - [Official Thunderstore CLI](https://github.com/thunderstore-io/thunderstore-cli)

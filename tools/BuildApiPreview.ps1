@@ -1,4 +1,4 @@
-param([string]$BasePackage)
+param([string]$BasePackage,[switch]$Release)
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 $root=Split-Path $PSScriptRoot -Parent
@@ -40,7 +40,8 @@ if($LASTEXITCODE -ne 0){throw 'API test mod compilation failed'}
 if(!$BasePackage){$BasePackage=Join-Path $root 'dist/RunicStorageNetwork-0.8.1.zip'}
 if((Get-FileHash -LiteralPath $BasePackage -Algorithm SHA256).Hash -ne '90DBA4E2C9E36D2BA387527EF41BEF6006558311942C05FBB52F03967721E270'){throw 'Expected original released 0.8.1 package as the asset source'}
 $version=(Get-Content -LiteralPath (Join-Path $root 'manifest.json') -Raw | ConvertFrom-Json).version_number
-$package=Join-Path $dist "RunicStorageNetwork-$version-api-preview.1.zip"
+$suffix=if($Release){''}else{'-api-preview.1'}
+$package=Join-Path $dist "RunicStorageNetwork-$version$suffix.zip"
 $testPackage=Join-Path $dist 'RunicStorageNetwork-ApiTest-0.1.0.zip'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 function Add-File($zip,[string]$source,[string]$entry){[IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip,$source,$entry,[IO.Compression.CompressionLevel]::Optimal) | Out-Null}
@@ -61,6 +62,6 @@ try {
 & (Join-Path $PSScriptRoot 'ValidateRelease.ps1') -Package $package -Tag "v$version"
 $zip=[IO.Compression.ZipFile]::Open($testPackage,[IO.Compression.ZipArchiveMode]::Create)
 try{Add-File $zip $probe 'plugins/RSN.ApiTest/RSN.ApiTest.dll';Add-File $zip (Join-Path $root 'examples/ApiTestMod/README.md') 'README.md'}finally{$zip.Dispose()}
-Write-Output "Local preview: $package"
+Write-Output "Mod package: $package"
 Write-Output "Local consumer: $testPackage"
 Get-FileHash -LiteralPath $package,$testPackage -Algorithm SHA256 | Format-Table -AutoSize

@@ -1,8 +1,16 @@
-# Network resources API — local preview 1
+# Network resources API
 
 Assembly: `RunicStorageNetwork.dll` 0.8.8. Namespace: `RunicStorageNetwork.API`. Contract version: `NetworkResources.ContractVersion == 1`.
 
-This is a development build, not a published release. Automated checks use game stand-ins; actual single-player and multiplayer verification is still required.
+Available starting with **Runic Storage Network 0.8.8**. The API is **experimental, disabled by default, and may cause errors**. Enable experimental distant storage to use it; see [Configuration](https://github.com/rerit33/RunicStorageNetwork/wiki/Configuration#experimental-distant-storage).
+
+The author has tested the API in single-player near a core and with the core unloaded, consuming iron nails in different quantities. Reviewed logs contain successful one- and five-nail payments without API errors. Multiplayer testing of the API is still pending. The automated suite uses game stand-ins and does not replace that testing.
+
+## What it provides
+
+The API lets a stationary machine find its connected network, inspect available materials, and pay for a production cycle. RSN removes the requested resources from network storage and returns a receipt. **It does not spawn items, add them to the machine, or run that machine's recipe.** The integrating mod applies the paid input to its own production system once.
+
+This is separate from player crafting and the Storage Codex interface. It does not add a fallback to the player's inventory or enable APIs while the experimental option is off.
 
 ## Three operations
 
@@ -19,10 +27,24 @@ API access requires `ExperimentalUnloadedNetworks = true` on the server and part
 
 ## Declare a consumer
 
+Reference `RunicStorageNetwork.dll` from version 0.8.8 as a compile-time dependency alongside your usual Valheim, Unity and BepInEx references. Do not bundle a second copy of RSN or the game's DLLs in your mod. For a required integration, add this attribute to your BepInEx plugin class:
+
+```csharp
+[BepInDependency("local.runicstoragenetwork", "0.8.8")]
+```
+
+Use `using RunicStorageNetwork.API;` in your consumer code. If RSN is optional for your mod, use a soft dependency and isolate the RSN-referencing code so that your plugin can load when that assembly is absent.
+
 Register a stationary player-built prefab with a `Piece` and persistent `ZNetView`, then add the marker on **every peer, including the server**:
 
 ```csharp
-prefab.AddComponent<NetworkConsumer>().ModId = "your.mod.guid";
+// During prefab registration, before spawning it:
+var marker = prefab.GetComponent<NetworkConsumer>()
+    ?? prefab.AddComponent<NetworkConsumer>();
+marker.ModId = "your.mod.guid";
+
+// Later, for a spawned instance with a valid persistent ZNetView:
+if (!consumerView.IsValid() || !consumerView.IsOwner()) return;
 var context = new ApiContext(consumerView.GetZDO().m_uid, "your.mod.guid");
 ```
 
@@ -38,6 +60,12 @@ The machine must be within a core/relay supply radius. Its network is resolved f
 var wood = new ResourceKey("Wood", 1);
 var snapshot = NetworkResources.GetResources(context);
 var amount = NetworkResources.GetResourceAmount(context, wood);
+
+if (amount.Status == ApiStatus.Ready && amount.Amount.HasValue)
+{
+    long availableWood = amount.Amount.Value;
+    // Safe to display as an observed count, not as a reservation.
+}
 ```
 
 - `Ready` and `IsComplete` describe a complete current observation, not a reservation or future guarantee.
@@ -45,7 +73,7 @@ var amount = NetworkResources.GetResourceAmount(context, wood);
 - A known item absent from a complete network has amount zero. An unregistered item returns `UnknownItem`.
 - `Updating` / `NotReady` mean discovery or refresh is pending. Stale values are observations only.
 - `NoNetwork`, `NotOwner`, `AccessDenied`, `FeatureDisabled`, `SnapshotLimit` describe why a usable current view is unavailable.
-- `SessionId`, `Revision`, `Age`, and `Recovery` let an integration correlate its saved intent and the current server observation. `OwnerEpoch` is the current ZDO ownership revision within this server session.
+- `SessionId`, `Revision`, `Age`, and `Recovery` let an integration correlate its saved intent and the current server observation. `Recovery.OwnerEpoch` is the current ZDO ownership revision within this server session. `ObservedAt` is a server runtime timestamp, not a wall-clock date; use `Age` for freshness.
 
 Scope caches are shared by network and creator permissions, expire after 30 seconds without interest, and refresh cooperatively. The reverse resource index selects candidate sources without scanning every inventory per API call. Inventory content is decoded again when its revision/owner changes or after the bounded freshness check.
 
@@ -68,6 +96,10 @@ var operation = NetworkResources.TryConsumeResources(context, request);
 // Poll operation.IsFinal / operation.Result, or supply one completion callback.
 ```
 
+This snippet assumes `snapshot.SessionId`, `savedSequence` and `savedCycleRevision` belong to a **new intent that your machine has already persisted**. Do not replace the session or increment the sequence each time a callback is delayed. `CycleRevision` is your stable recipe/production revision string, not the network snapshot revision. If a recipe changes, keep an accepted intent unchanged until its payment is resolved; the next intent can use the new recipe.
+
+Use one consumer identity per machine. For new work, sequences increase across that consumer's saved history; do not reset them whenever the component is recreated. Duplicate resource requirements are combined before comparison, so merely reordering identical requirements does not create a different request.
+
 Explicit `AnyMatchingInstance` consent is required: the contract aggregates prefab + quality. It does not preserve or select custom item metadata, durability or cosmetic variants for the consuming machine. Do not use this policy when an exact unique item must be transferred intact.
 
 `AdmissionCode` and payment outcome are separate:
@@ -79,7 +111,7 @@ Explicit `AnyMatchingInstance` consent is required: the contract aggregates pref
 | `OutcomeUnknown` | A server-session boundary prevents proof of the old outcome. Do not create output or issue replacement payment automatically. |
 | No outcome (`null`) | Admission/observation result such as `Busy`, `Throttled`, `NotOwner` or `RequestConflict`. It is not proof that an earlier payment failed. |
 
-Retrying the same normalized payload under the same identity observes the original operation/receipt. Changing its resources, cycle or policy conflicts. Older sequences return `ExpiredRequest` once a later sequence has replaced their receipt. An accepted operation cannot be replaced until source cleanup completes. A temporary admission rejection can be retried with the same request.
+Retrying the same normalized payload under the same identity observes the original operation/receipt. Changing its resources, cycle, policy or `StartWithin` conflicts. Older sequences return `ExpiredRequest` once a later sequence has replaced their receipt. An accepted operation cannot be replaced until source cleanup completes. A temporary admission rejection can be retried with the same request.
 
 One local operation handle retains the first non-null callback; it runs at most once on a later main-thread tick. Exceptions in it are logged and do not change the receipt. Immediate argument/thread/disabled-host rejections return a final handle directly and do not schedule callbacks. Always inspect the returned handle.
 
@@ -101,7 +133,28 @@ Successful payment does **not** make arbitrary output code exactly-once. A produ
 
 Receipts are in-memory for the server session. There is no atomic world-save transaction spanning source chests and another mod's machine. A crash/restart with unresolved intent requires explicit reconciliation by that integration; automatic duplicate production is forbidden.
 
-## Limits in preview 1
+## Status handling
+
+`ApiStatus` explains readiness or refusal; only `ConsumeResult.Outcome` confirms the payment outcome. `AdmissionCode == Ready` means the call was admitted locally, **not that the resources have been paid**. Wait for `IsFinal` and inspect `Result`.
+
+| Status | Integration response |
+| --- | --- |
+| `Ready` | Use a complete read as an observation, or continue waiting for the admitted operation's result. |
+| `Partial`, `Updating`, `NotReady` | Keep unknown/stale counts distinct from zero and refresh later. |
+| `NoNetwork`, `AccessDenied`, `SourcesUnavailable`, `InsufficientResources` | Keep the production intent. After a definitive `NoDebit`, wait for conditions to improve before starting its next payment attempt. |
+| `Busy`, `Throttled` | Back off, respecting a positive `RetryAfter` when provided; retry the same request. Do not submit every frame. |
+| `CapacityExceeded`, `RecoveryCapacityExceeded` | Reduce concurrent work and wait; do not generate replacement identities to bypass the limit. |
+| `NotOwner` | Only the current consumer owner starts new work. Preserve the saved intent for the new owner to reconcile. |
+| `FeatureDisabled` | Explain the required experimental setting in your own integration settings; do not silently fall back to another debit path. |
+| `Unavailable`, `IncompatibleVersion` | Wait for a usable session or matching mod versions. An unresolved request from an older session must not become a fresh payment automatically. |
+| `UnknownItem`, `UnsupportedConsumer`, `InvalidRequest`, `WrongThread` | Correct the prefab, consumer registration, request or calling thread. |
+| `RequestConflict`, `ExpiredRequest` | Reconcile your saved intent/receipt. Do not assume the resources were never debited. |
+| `StartExpired`, `PlanLimitExceeded` | Check the final outcome, then retry later after `NoDebit` or redesign an oversized operation. |
+| `SnapshotLimit` | The requested view exceeds a read limit; an empty/partial view is not proof that storage is empty. |
+
+Only `Success` authorizes using the paid resources. Checking a displayed count, receiving a callback or seeing `Completed` on a rejected handle is not sufficient. When combining callback and polling, route both through the same receipt-application guard.
+
+## Limits in 0.8.8
 
 - 32 distinct requirements, 100,000 units per key, exact quality 1–10,000, at most 32 selected sources per operation.
 - 64 active API operations globally, 16 per initiating peer, 8 per network. API operations also count toward the common 256-operation ceiling and cannot occupy more than a quarter of it. Earlier admitted requests have priority; waiting player operations have priority on shared sources.
@@ -116,4 +169,14 @@ The normal path is lightweight; decoding one inventory, building a graph and inv
 
 ## Local test consumer
 
-See [the separate consumer README](examples/ApiTestMod/README.md) and its source. It uses only the public API. Build with `tools/BuildApiPreview.ps1`. It consumes materials into a saved counter, demonstrates same-ID replay and automatic retry after `NoDebit`, and deliberately restricts itself to single-player. The API's multiplayer transport still needs an actual client/server test before release.
+See [the separate consumer README](https://github.com/rerit33/RunicStorageNetwork/blob/main/examples/ApiTestMod/README.md) and [its source](https://github.com/rerit33/RunicStorageNetwork/blob/main/examples/ApiTestMod/ApiTestMod.cs). It uses only the public API. Build with `tools/BuildApiPreview.ps1` using the repository's [local build setup](https://github.com/rerit33/RunicStorageNetwork/blob/main/BUILDING.md). It consumes materials into a saved counter, demonstrates same-ID replay and automatic retry after `NoDebit`, and deliberately restricts itself to single-player. The test plugin is not included in the Thunderstore or Hexium package.
+
+For an actual multiplayer integration, test simultaneous payments and player crafting, another player opening the same chest, source-owner disconnects, machine ownership changes, and recovery of the original request without duplicate production. Also test startup with the experimental option disabled and access to a core that has not loaded near any player.
+
+## Contract reference
+
+- [Public methods and consumer marker](https://github.com/rerit33/RunicStorageNetwork/blob/v0.8.8/src/ApiFacade.cs)
+- [DTO constructors, properties and enums](https://github.com/rerit33/RunicStorageNetwork/blob/v0.8.8/src/ApiTypes.cs)
+- [Request validation and identity rules](https://github.com/rerit33/RunicStorageNetwork/blob/v0.8.8/src/ApiRules.cs)
+
+This page documents contract version 1 in RSN 0.8.8. Check the release notes and `NetworkResources.ContractVersion` when targeting later versions.

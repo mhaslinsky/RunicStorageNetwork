@@ -11,6 +11,11 @@
 !/API_PROPOSAL_RU.md
 !/API.md
 !/API_IMPLEMENTATION_RU.md
+!/docs/
+/docs/*
+!/docs/wiki/
+/docs/wiki/*
+!/docs/wiki/*.md
 !/examples/
 /examples/*
 !/examples/ApiTestMod/
