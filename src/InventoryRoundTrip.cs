@@ -9,7 +9,7 @@ namespace RunicStorageNetwork.Logic {
  // quantizes durability during Load/Save. Neither is evidence of a lost item.
  // Unknown formats, fields, missing items and changed metadata still fail closed.
  internal static class InventoryRoundTrip {
-  sealed class Item {
+  internal sealed class Item {
    internal int Prefab,Stack=1,X,Y,Quality=1,Variant,World,Durability;
    internal float LoadedDurability;
    internal bool Compact,Equipped,PickedUp,Cheated;
@@ -34,7 +34,7 @@ namespace RunicStorageNetwork.Logic {
     return true;
    }catch(Exception e) when(e is IOException||e is InvalidDataException||e is ArgumentException||e is OverflowException){reason="unsupported or malformed inventory: "+e.Message;return false;}
   }
-  static List<Item> Read(byte[] bytes,Func<string,int> prefabHash){
+  internal static List<Item> Read(byte[] bytes,Func<string,int> prefabHash){
    using(var stream=new MemoryStream(bytes,false))using(var r=new BinaryReader(stream,new UTF8Encoding(false,true))){
     int version=r.ReadInt32();if(version<100||version>109)throw new InvalidDataException("version "+version);
     bool compact=version>=108;int count=compact?r.ReadUInt16():r.ReadInt32();

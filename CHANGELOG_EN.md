@@ -2,6 +2,8 @@
 
 ## 0.9.0
 
+- Fixed remote storage refusing chests when item mods initialize extra item data during loading.
+- Crafting no longer waits for unrelated or unavailable chests before confirming materials from the selected sources.
 - Fixed remote crafting refusing readable inventories after a save-format update or durability rounding. An unreadable chest no longer interrupts resource checks for other chests.
 - Added the Runic Builder's Codex, crafted at the black forge. Bind it to a core and equip it to build using that network's materials within 50 m of its core or connected relays, or the configured relay link range.
 - Each builder's book remembers its own network. Use it on another core to change the binding; renaming the network keeps the connection.

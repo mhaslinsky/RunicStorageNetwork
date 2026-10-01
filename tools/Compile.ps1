@@ -187,4 +187,18 @@ if($Tests){
  if($LASTEXITCODE -ne 0){throw 'Builder runtime test compilation failed'}
  & $builderProbe
  if($LASTEXITCODE -ne 0){throw 'Builder runtime tests failed'}
+ # Passive remote decoding must not invoke live item/inventory migration hooks.
+ $offlineReadProbe=Join-Path $Output 'OfflineInventoryRuntimeTests.exe'
+ $offlineReadRsp=Join-Path $Output 'OfflineInventoryRuntimeTests.rsp'
+ $offlineReadExtracted=Join-Path $Output 'ApiDecodeMethod.cs'
+ [IO.File]::WriteAllText($offlineReadExtracted,"using System; using RunicStorageNetwork.Logic; namespace RunicStorageNetwork { static partial class ApiWorld {`n"+(Read-TestMethod 'src\ApiWorld.cs' 'internal static Inventory Decode')+"`n} }")
+ $offlineReadLines=@('/nologo','/nostdlib+','/langversion:9','/target:exe','/define:OFFLINE_INVENTORY_RUNTIME_TESTS',('/out:"'+$offlineReadProbe+'"'))
+ $offlineReadLines+=@($refs | Select-Object -Unique | ForEach-Object {'/reference:"'+$_+'"'})
+ $offlineReadLines+=@('src\OfflineInventory.cs','src\InventoryRoundTrip.cs','tests\InventoryRoundTripTests.cs','tests\OfflineInventoryRuntimeTests.cs' | ForEach-Object {'"'+(Join-Path $root $_)+'"'})
+ $offlineReadLines+='"'+$offlineReadExtracted+'"'
+ [IO.File]::WriteAllLines($offlineReadRsp,$offlineReadLines)
+ & "$editor\NetCoreRuntime\dotnet.exe" "$editor\DotNetSdkRoslyn\csc.dll" "@$offlineReadRsp"
+ if($LASTEXITCODE -ne 0){throw 'Offline inventory runtime test compilation failed'}
+ & $offlineReadProbe
+ if($LASTEXITCODE -ne 0){throw 'Offline inventory runtime tests failed'}
 }

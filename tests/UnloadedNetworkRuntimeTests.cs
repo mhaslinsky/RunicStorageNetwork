@@ -100,8 +100,10 @@ class Inventory {
  internal byte[] Bytes=Array.Empty<byte>();internal static bool DropUnknown;internal static Func<byte[],byte[]> Normalize;
  public Inventory(string n,object b,int w,int h){}public void Load(ZPackage p){Bytes=(byte[])p.GetArray().Clone();if(DropUnknown)Bytes=new byte[]{0};if(Normalize!=null)Bytes=Normalize(Bytes);}
  public void Save(ZPackage p){p.Put((byte[])Bytes.Clone());}public void RemoveAll(){Bytes=Array.Empty<byte>();}
+ public Inventory GetAllItems()=>this;public void Clear()=>RemoveAll();
 }
 namespace RunicStorageNetwork {
+ static class OfflineInventory {internal static void Load(Inventory inv,byte[] bytes){if(bytes.Length==0)inv.RemoveAll();else inv.Load(new ZPackage(bytes));}}
  static class BuilderCodex {internal static string RemoteBinding(ZDO z)=>z?.BuilderBinding;}
  class ConfigEntry {public bool Value;}
  static class Plugin {internal const string Guid="local.runicstoragenetwork";internal static bool Healthy=true;internal static ConfigEntry ExperimentalUnloadedNetworks=new ConfigEntry();internal static List<string> Messages=new List<string>();internal static void Info(string s)=>Messages.Add(s);internal static void Error(string s,Exception e){Messages.Add(s+": "+e.Message);}}

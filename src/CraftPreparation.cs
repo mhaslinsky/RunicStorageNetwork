@@ -120,7 +120,10 @@ namespace RunicStorageNetwork {
    // Browsing only refreshes counts. Acquire a payment reservation only after
    // the player explicitly requests this exact recipe.
    if(requested==null||!Same(requested,desired))return;
-   if(retiring.Count>0||now<nextProbe||!CraftInspection.Ready)return;nextProbe=now+1;
+   // The broad read-only inspection may include unrelated or unavailable
+   // storage. A click validates and reserves only the chosen payment sources;
+   // those owners still confirm fresh counts before any animation or debit.
+   if(retiring.Count>0||now<nextProbe)return;nextProbe=now+1;
    if(Personal(desired.Player,desired.Recipe,desired.Op.Quality,desired.Op.Multiplier)){failureSince=-1;StartRequested();return;}
    try{
     var core=contextCore;if(!core)return;

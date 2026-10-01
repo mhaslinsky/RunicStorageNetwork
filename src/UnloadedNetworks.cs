@@ -342,8 +342,8 @@ namespace RunicStorageNetwork {
    if(r.Read&&bytes.SequenceEqual(r.Expected))return false;
    r.Read=false;var inventory=__instance.GetInventory();
    // Never silently drop unknown or altered item records on an offline rewrite.
-   if(bytes.Length>0){inventory.Load(new ZPackage(bytes));var roundTrip=new ZPackage();inventory.Save(roundTrip);if(!Logic.InventoryRoundTrip.Preserved(bytes,roundTrip.GetArray(),s=>s.GetStableHashCode(),out var reason)){inventory.RemoveAll();r.Read=false;throw new InvalidOperationException("Offline inventory read refused: "+reason+"; saved chest data was not changed.");}}
-   else inventory.RemoveAll();
+   OfflineInventory.Load(inventory,bytes);
+   if(bytes.Length>0){var roundTrip=new ZPackage();inventory.Save(roundTrip);if(!Logic.InventoryRoundTrip.Preserved(bytes,roundTrip.GetArray(),s=>s.GetStableHashCode(),out var reason)){inventory.GetAllItems().Clear();r.Read=false;throw new InvalidOperationException("Offline inventory read refused: "+reason+"; saved chest data was not changed.");}}
    r.Expected=(byte[])bytes.Clone();r.Read=true;r.ReportedFailure=false;R.Set(__instance,"m_lastRevision",r.Data.DataRevision);__result=true;return false;
   }
   static bool SaveReplica(Container __instance){
