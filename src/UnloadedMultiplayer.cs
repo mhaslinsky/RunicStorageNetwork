@@ -12,7 +12,7 @@ namespace RunicStorageNetwork {
   const float Lifetime=6;
   sealed class Record {internal ZDOID Id;internal uint Revision;internal ushort OwnerRevision;}
   sealed class Watch {
-   internal ZDOID Actor,Core;internal long Player;internal Vector3 Point;internal int Token,Generation;internal float Until,NextRequest;internal long Revision=-1;internal bool Recheck=true;
+   internal ZDOID Actor,Core;internal long Player;internal Vector3 Point;internal int Token,Generation;internal float Until,NextRequest;internal long Revision=-1;internal bool Recheck=true,Build;
    internal readonly HashSet<ZDOID> Ids=new HashSet<ZDOID>(),Queued=new HashSet<ZDOID>();
    internal readonly Queue<ZDOID> Send=new Queue<ZDOID>();internal readonly Queue<ZPackage> Pages=new Queue<ZPackage>();
   }
@@ -21,38 +21,38 @@ namespace RunicStorageNetwork {
   static readonly Dictionary<ZDOID,Record> waiting=new Dictionary<ZDOID,Record>();
   static readonly Queue<ZDOID> pending=new Queue<ZDOID>();
   static readonly Dictionary<int,Record[]> pages=new Dictionary<int,Record[]>();
-  static bool serverEnabled=true,hasPoint;static Vector3 point;static ZDOID actor;static long player;
+  static bool serverEnabled=true,hasPoint,build;static Vector3 point;static ZDOID actor;static long player;
   static int token,generation,pageCount,totalRecords,serial,watchCursor;static float wantedUntil,nextRequest,nextMissing;
   internal static bool ServerEnabled=>serverEnabled;
   internal static bool Preparing=>!UnloadedNetworks.Authority&&waiting.Count>0;
   internal static bool Accepted(ZDOID id)=>accepted.Contains(id);
   internal static void Clear(){watchers.Clear();accepted.Clear();waiting.Clear();pending.Clear();pages.Clear();serverEnabled=true;hasPoint=false;token=generation=pageCount=totalRecords=serial=watchCursor=0;wantedUntil=nextRequest=nextMissing=0;}
   internal static void Register(Action<string,Action<long,ZPackage>> register){register("unloaded_query",Query);register("unloaded_catalog",Catalog);register("unloaded_missing",Missing);}
-  internal static void Touch(Vector3 at,long actorId){
+  internal static void Touch(Vector3 at,long actorId,bool building=false){
    if(!UnloadedNetworks.Requested||UnloadedNetworks.Authority||!Player.m_localPlayer||actorId!=Player.m_localPlayer.GetPlayerID())return;
    var id=Player.m_localPlayer.GetZDOID();
-   if(!hasPoint||actor!=id){hasPoint=true;actor=id;player=actorId;token++;generation=0;pages.Clear();nextRequest=0;}point=at;
+   if(!hasPoint||actor!=id||build!=building){hasPoint=true;actor=id;player=actorId;build=building;token++;generation=0;pages.Clear();nextRequest=0;}point=at;
    Pulse();
   }
   internal static void Pulse(){
    if(!UnloadedNetworks.Requested||UnloadedNetworks.Authority||!hasPoint)return;
    wantedUntil=Time.unscaledTime+.5f;
    if(Time.unscaledTime<nextRequest||Transport.Server==0)return;nextRequest=Time.unscaledTime+1;
-   var p=new ZPackage();p.Write(token);p.Write(actor);p.Write(player);p.Write(point);Transport.Send(Transport.Server,"unloaded_query",p);
+   var p=new ZPackage();p.Write(token);p.Write(actor);p.Write(player);p.Write(point);p.Write(build);Transport.Send(Transport.Server,"unloaded_query",p);
   }
   static bool ActorAllowed(long peer,Watch w)=>RemoteContext.Actor(w.Actor,peer,w.Player,out var z,out _)&&(z.GetPosition()-w.Point).sqrMagnitude<=144;
   static void Query(long sender,ZPackage p){
    if(!UnloadedNetworks.Authority||sender==ZNet.GetUID())return;
-   int requested=p.ReadInt();var id=p.ReadZDOID();long who=p.ReadLong();var at=p.ReadVector3();
+   int requested=p.ReadInt();var id=p.ReadZDOID();long who=p.ReadLong();var at=p.ReadVector3();bool building=p.ReadBool();
    if(requested<1||!Finite(at))return;
-   var candidate=new Watch{Actor=id,Player=who,Point=at,Token=requested};if(!ActorAllowed(sender,candidate))return;
+   var candidate=new Watch{Actor=id,Player=who,Point=at,Token=requested,Build=building};if(!ActorAllowed(sender,candidate))return;
    if(!UnloadedNetworks.Enabled){var off=new ZPackage();off.Write(requested);off.Write(false);Transport.Send(sender,"unloaded_catalog",off);return;}
    if(!watchers.TryGetValue(sender,out var w)){
     if(watchers.Count>=128)return;watchers[sender]=w=candidate;
    }else{
     if(Time.unscaledTime<w.NextRequest||(w.Actor==id&&requested<w.Token))return;
     if(w.Token!=requested||w.Actor!=id||w.Player!=who){w.Revision=-1;w.Pages.Clear();}
-    w.Actor=id;w.Player=who;w.Point=at;w.Token=requested;w.Recheck=true;
+    w.Actor=id;w.Player=who;w.Point=at;w.Token=requested;w.Build=building;w.Recheck=true;
    }
    w.NextRequest=Time.unscaledTime+.5f;w.Until=Time.unscaledTime+Lifetime;
    UnloadedNetworks.Wake();
@@ -119,7 +119,9 @@ namespace RunicStorageNetwork {
      var w=pair.Value;if(Time.unscaledTime>=w.Until||!ActorAllowed(pair.Key,w)){watchers.Remove(pair.Key);continue;}
      UnloadedNetworks.Wake();if(!UnloadedNetworks.Prepare())continue;Topology.Refresh();
      if(w.Recheck||w.Revision!=UnloadedNetworks.CatalogRevision){
-      var core=Topology.Choose(w.Point,w.Player);var id=core?R.View(core).GetZDO().m_uid:ZDOID.None;
+      string binding=w.Build?BuilderCodex.RemoteBinding(RemoteContext.Data(w.Actor)):null;
+      var at=w.Build?RemoteContext.Data(w.Actor).GetPosition():w.Point;
+      var core=Topology.Choose(at,w.Player,binding);var id=core?R.View(core).GetZDO().m_uid:ZDOID.None;
       if(w.Core!=id||w.Revision!=UnloadedNetworks.CatalogRevision)Snapshot(w,core);
       w.Core=id;w.Recheck=false;
      }

@@ -16,6 +16,7 @@ static class PlannerTests {
  }
  public static int Main(){try{
   passed+=GatewayTests.Run();
+  passed+=BuilderCodexTests.Run();
   Test("all player",()=>{var p=Plan(new Stock("player","Wood",1,10));Assert(p.Count==1&&p[0].Source=="player"&&p[0].Amount==10,"plan");});
   Test("all chest",()=>Assert(Plan(new Stock("a","Wood",1,10))[0].Amount==10,"plan"));
   Test("mixed 2+3+5 exact",()=>{var p=Plan(new Stock("b","Wood",1,5),new Stock("player","Wood",1,2),new Stock("a","Wood",1,3));Assert(p.Select(x=>x.Amount).SequenceEqual(new[]{2,3,5}),"order");});

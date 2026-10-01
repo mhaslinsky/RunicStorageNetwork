@@ -53,7 +53,7 @@ namespace RunicStorageNetwork {
     // Alternate-ingredient recipes are selected deterministically after fresh owner snapshots.
     req=recipe.m_resources;point=station.transform.position;
    }
-   Topology.Refresh(forceTopology);core=CoreObject(Core);reason="network path or coverage changed";if(!core||!NetworkGraph.MatchesRoot(core.GetComponent<NetworkMember>().SavedNetwork,Network)||!Topology.Supplies(core,point,PlayerId))return false;
+   Topology.Refresh(forceTopology);core=CoreObject(Core);reason="network path or coverage changed";if(!core||!NetworkGraph.MatchesRoot(core.GetComponent<NetworkMember>().SavedNetwork,Network)||!Topology.Supplies(core,point,PlayerId,Build?BuilderCodex.Binding(player):null))return false;
    Needs=Stockroom.Requirements(req,Quality,Multiplier);
    reason="invalid requirements";if(Needs.Count==0||Needs.Count>32||Needs.Any(n=>n.Amount>100000))return false;
    foreach(var s in PlayerStock)if(s.Source!="player"||s.Amount<0||s.Amount>100000||!Needs.Any(n=>n.Item==s.Item)||s.Quality<1||s.Quality>100){reason="invalid character contribution";return false;}

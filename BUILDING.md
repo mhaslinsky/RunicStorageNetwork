@@ -113,7 +113,11 @@ With the separate Unity build project already prepared, run:
 
 This compiles the plugin, runs the isolated suite, builds a bundle containing all six model prefabs and their icons, and writes `dist/RunicStorageNetwork-<version>-builder-codex-preview.zip`. Model, icon and equipped mannequin screenshots are saved under the build's `artifacts` directory. The default gateway build also includes the new accessory. The authoring Blender project and installed game profiles are not modified.
 
-The accessory uses vanilla `ItemType.Utility` (the same slot as Megingjord) and rigid `attach_Hips` equipment attachment. Obtain it for local testing with `spawn RSN_RunicBuilderCodex 1` after enabling the game's developer console/commands. No recipe or special ability is registered. Test equip/unequip, drop/pickup, save/reload and movement with armour in game; Editor fit checks do not cover those interactions.
+The accessory uses vanilla `ItemType.Utility` (the same slot as Megingjord) and rigid `attach_Hips` equipment attachment. Craft it at a level 1 black forge, or obtain it for local testing with `spawn RSN_RunicBuilderCodex 1` after enabling the game's developer console/commands. Bind it by using the item on a core, then equip it for building at relay link range. Test equip/unequip, drop/pickup, save/reload and movement with armour in game; Editor fit checks do not cover those interactions.
+
+The persistent core identity and display name are stored in each item's `m_customData`. Equipment synchronization publishes the binding alongside the native utility item hash; remote validation requires both and selects only the bound network. The book remains a consumer, not a moving graph node. Binding lookup and gateway route results reuse the existing topology snapshot; ordinary and wearable supply routes use separate cache keys. The black forge recipe, UI binding, unloaded discovery and network payment all use the existing systems. No separate supply loop or container scan is added.
+
+Tests cover binding/rebinding separate copies, ward and inventory access, equipment changes, normal crafting isolation, exact distance limits, broken paths, root identity changes after load, gateway filtering and unloaded discovery. In multiplayer, verify a non-host player builds 40–50 m from a relay, steps out of range, removes/rebinds the book, and accesses a cold unloaded network. Verify names and binding survive inventory storage, dropping, handing the book to another player, and re-entering the world.
 
 ### Source layout
 

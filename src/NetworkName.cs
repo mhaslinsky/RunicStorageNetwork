@@ -17,7 +17,7 @@ namespace RunicStorageNetwork {
    Topology.Refresh();var target=Target;if(!CanEdit(player,target))return false;
    editing=target;TextInput.instance.RequestText(this,RsnLocalization.Text("network_name_input"),NetworkLabels.MaxLength);return true;
   }
-  public bool UseItem(Humanoid user,ItemDrop.ItemData item)=>false;
+  public bool UseItem(Humanoid user,ItemDrop.ItemData item)=>BuilderCodex.Use(GetComponent<Core>(),user,item);
   public string GetText()=>Read(editing?editing:Target);
   public void SetText(string value){
    Topology.Refresh();var target=Target;

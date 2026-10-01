@@ -48,6 +48,14 @@ All four structures are built with the regular hammer near a workbench and requi
 
 The closed book used to build a Storage Codex. Craft it at a level 1 forge after discovering its ingredients. It can be carried, stored, dropped and picked up like a regular item.
 
+#### Runic Builder's Codex
+
+A wearable book for building farther from the network. Craft it at a black forge, put it on your hotbar, aim at a Network Core and press the book's hotbar key to bind it. Then equip it in the utility slot, shared with Megingjord.
+
+While equipped, the book draws building materials only from its bound network within **50 m** of a core or connected relay, following the configured relay link range. Each copy keeps its own binding; use it on another core to rebind. Network names are optional, and renaming a network does not break the binding. An unbound book supplies no network materials while equipped.
+
+The book does not connect nearby chests or other players, and does not extend crafting-station supply or remove normal workbench requirements for building. Gateway restrictions and storage access rules still apply. Loaded networks work normally; reaching unloaded parts requires experimental distant storage.
+
 ### Getting started
 
 1. Build a core near your storage chests.
@@ -74,6 +82,8 @@ By default, chests connect within **20 m** of a node. Crafting stations and buil
 | Greydwarf eyes | 10 | 5 |
 
 **Runic Codex — forge level 1:** Silver ×4, Crystal ×2, Greydwarf Eye ×6, Linen Thread ×4, Leather Scraps ×4. Produces one book. The recipe uses normal ingredient discovery.
+
+**Runic Builder's Codex — black forge level 1:** Runic Codex ×1, Black Core ×1, Refined Eitr ×5, Silver ×2, Crystal ×2. Produces one accessory and unlocks through normal ingredient discovery.
 
 **Storage Codex — hammer, near a workbench:** Runic Codex ×1, Fine Wood ×10, Stone ×8, Iron ×2, Red Jute ×2. Dismantling returns the materials, including the book.
 
@@ -147,6 +157,14 @@ Runic Storage Network объединяет сундуки базы в сеть �
 
 Закрытая книга для постройки Кодекса запасов. Создаётся на кузнице первого уровня после знакомства с ингредиентами. Её можно носить, хранить, выбрасывать и подбирать как обычный предмет.
 
+#### Рунный кодекс строителя
+
+Экипируемая книга для строительства на большем расстоянии от сети. Создайте её на чёрной кузнице, поместите на панель быстрого доступа, наведитесь на ядро и нажмите клавишу слота книги для привязки. Затем экипируйте её в слот аксессуара, общий с поясом Мегингъёрд.
+
+Экипированная книга использует строительные материалы только своей сети в пределах **50 м** от её ядра или подключённого реле. Дальность соответствует настройке связи реле. Каждый экземпляр хранит собственную привязку; использование на другом ядре меняет её. Название сети необязательно, а переименование не разрывает связь. Экипированная непривязанная книга не предоставляет материалы сети.
+
+Книга не подключает соседние сундуки и других игроков, не расширяет снабжение станков для крафта и не отменяет требования к верстаку при строительстве. Ограничения мостов и правила доступа к хранилищам сохраняются. Загруженные сети работают в обычном режиме; доступ к выгруженным участкам требует экспериментальной функции.
+
 ### Как начать
 
 1. Постройте ядро рядом со складскими сундуками.
@@ -173,6 +191,8 @@ Runic Storage Network объединяет сундуки базы в сеть �
 | Глаза грейдворфа | 10 | 5 |
 
 **Рунный кодекс — кузница первого уровня:** серебро ×4, кристалл ×2, глаз грейдворфа ×6, льняная нить ×4, обрывки кожи ×4. Получается одна книга. Рецепт открывается по обычным правилам знакомства с ингредиентами.
+
+**Рунный кодекс строителя — чёрная кузница первого уровня:** Рунный кодекс ×1, чёрное ядро ×1, очищенный эйтр ×5, серебро ×2, кристалл ×2. Получается один аксессуар; рецепт открывается по обычным правилам знакомства с ингредиентами.
 
 **Кодекс запасов — молоток, рядом с верстаком:** Рунный кодекс ×1, качественная древесина ×10, камень ×8, железо ×2, красный джут ×2. При разборке материалы возвращаются, включая книгу.
 

@@ -45,7 +45,11 @@ namespace RunicStorageNetwork {
   internal static bool BuildToolUsable(Player p,ItemDrop.ItemData tool){
    return tool!=null&&(!tool.m_shared.m_useDurability||tool.m_durability>0)&&p.HaveStamina(tool.m_shared.m_attack.m_attackStamina);
   }
-  internal static Core Context(Player p,bool craft){if(!p||p!=Player.m_localPlayer||!Plugin.Enabled||(!craft&&!BuildTable(p)))return null;var station=p.GetCurrentCraftingStation();if(craft&&(!station||station.m_upgrader))return null;return Core.Choose(craft?station.transform.position:p.transform.position,p.GetPlayerID());}
+  internal static Core Context(Player p,bool craft){
+   if(!p||p!=Player.m_localPlayer||!Plugin.Enabled||(!craft&&!BuildTable(p)))return null;
+   var station=p.GetCurrentCraftingStation();if(craft&&(!station||station.m_upgrader))return null;
+   return craft?Core.Choose(station.transform.position,p.GetPlayerID()):Topology.Choose(p.transform.position,p.GetPlayerID(),BuilderCodex.Binding(p));
+  }
   internal static bool Craft(InventoryGui gui,Player p){
    if(Active!=null)return true;if(Waiting!=null)return false;
    if(CraftPreparation.Claimed)return CraftPreparation.Execute(gui,p);

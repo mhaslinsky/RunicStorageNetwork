@@ -15,7 +15,7 @@ namespace UnityEngine {
 }
 struct ZDOID {public string Id;public ZDOID(string id){Id=id;}}
 class ZDO {
- public ZDOID m_uid;public int Prefab;public long Owner=15;public Vector3 Position;public string Identity,Tag="",Binding="";public int InventoryRevision;
+ public ZDOID m_uid;public int Prefab;public long Owner=15;public Vector3 Position;public string Identity,Tag="",Binding="",BuilderBinding;public int InventoryRevision;
  public bool IsValid()=>true;public int GetPrefab()=>Prefab;public long GetLong(int key,long fallback)=>1;public int GetInt(string key,int fallback)=>1;public Vector3 GetPosition()=>Position;
  public string GetString(string key,string fallback)=>key==Gateway.TagKey?Tag:key==Gateway.BindingKey?Binding:Identity??fallback;
  public void Set(string key,string value){Binding=value;UnloadedNetworks.CatalogRevision++;}public void SetOwner(long id){Owner=id;}
@@ -32,6 +32,7 @@ class CraftingStation:Component {}
 class Player:Component {public static Player m_localPlayer;public bool Building;public CraftingStation Station;public long GetPlayerID()=>1;public CraftingStation GetCurrentCraftingStation()=>Station;public bool InPlaceMode()=>Building;}
 class Container:Component {}
 namespace RunicStorageNetwork {
+ static class BuilderCodex {internal static string ForOperation(Operation op)=>op.Build?RemoteContext.Data(op.Actor)?.BuilderBinding:null;internal static bool Building(long actor)=>false;}
  static class Gateway {internal const string PrefabName="RSN_RunicGateway",TagKey="tag",BindingKey="binding";}
  class NetworkMember {internal const string NetworkKey="network",SchemaKey="schema";internal string Id;}
  class Core:Component {internal NetworkMember Member;public override T GetComponent<T>()=>Member as T;}
@@ -41,11 +42,11 @@ namespace RunicStorageNetwork {
  static class Topology {internal static NetworkGraph Graph;internal static Point Position(Vector3 p)=>new Point(p.x,p.y,p.z);internal static NetworkGraph ForActor(long actor)=>GatewayRuntime.Graph(actor);}
  class Operation {internal ZDOID Core=new ZDOID("core"),Station=new ZDOID("station"),Actor=new ZDOID("actor");internal bool Build;internal long PlayerId=1;internal Vector3 Point=new Vector3(5000,0,0);}
  partial class RemoteContext {
-  readonly Operation op;internal NetworkGraph Graph;Vector3 consumer;string Network=>Graph.Nodes[R.Key(op.Core)].Network;
+  readonly Operation op;internal NetworkGraph Graph;Vector3 consumer;string builderBinding;string Network=>Graph.Nodes[R.Key(op.Core)].Network;
   internal RemoteContext(Operation value){op=value;}
   internal static ZDO Source(string key)=>GatewayRuntimeTests.sources.TryGetValue(key,out var z)?z:UnloadedNetworks.Records.FirstOrDefault(x=>x.m_uid.Id==key);
   internal static ZDO Data(ZDOID id)=>Source(id.Id);
-  internal bool Validate(out string reason){reason="";Graph=GatewayRuntime.Graph(op.PlayerId);consumer=op.Point;return Graph.Supplies(Network,Topology.Position(consumer),n=>true);}
+  internal bool Validate(out string reason){reason="";Graph=GatewayRuntime.Graph(op.PlayerId);consumer=op.Point;builderBinding=BuilderCodex.ForOperation(op);return Connected(consumer);}
  }
 }
 static class GatewayRuntimeTests {
@@ -67,6 +68,9 @@ static class GatewayRuntimeTests {
   Test("disabled experiment bypasses inventory and path integration",()=>{UnloadedNetworks.Enabled=false;Topology.Graph=null;var raw=new[]{new Stock("chest","Iron",1,100)};Check(ReferenceEquals(GatewayRuntime.Local(null,1,null,raw),raw)&&GatewayRuntime.ValidatePlan(null,null),"disabled mode calls inventory/graph");});
   Test("final result check uses cached route at the actual craft or build point",()=>{sources["station"]=new ZDO{Position=new Vector3(5000,0,0)};sources["actor"]=new ZDO{Position=new Vector3(0,0,0)};sources["chest"]=new ZDO{Position=new Vector3(0,0,0)};var op=new Operation();var graph=GatewayRuntime.Graph(1);var plan=new[]{new Debit("chest","Iron",1,1)};Check(!GatewayRuntime.ValidatePlan(op,plan),"distant craft bypassed");op.Build=true;Check(GatewayRuntime.ValidatePlan(op,plan)&&ReferenceEquals(graph,GatewayRuntime.Graph(1)),"local build blocked or graph rebuilt");UnloadedNetworks.Records[2].Tag="different";UnloadedNetworks.CatalogRevision++;op.Build=false;Check(!GatewayRuntime.ValidatePlan(op,new[]{new Debit("chest","Wood",1,1)}),"deleted pair remained in cached route");sources.Clear();});
   Test("new world with same revision cannot reuse the previous graph",()=>{var a=GatewayRuntime.Graph(1);ZDOMan.instance=new ZDOMan();var b=GatewayRuntime.Graph(1);Check(!ReferenceEquals(a,b),"cross-world cache");});
+  Test("server accepts only bound equipped wearable in extended build range",()=>{sources["actor"]=new ZDO{BuilderBinding="A"};var op=new Operation{Build=true,Point=new Vector3(-50,0,0)};Check(new RemoteContext(op).Validate(out _),"bound wearable rejected at 50m");sources["actor"].BuilderBinding="B";Check(!new RemoteContext(op).Validate(out _),"foreign binding accepted");sources["actor"].BuilderBinding="";Check(!new RemoteContext(op).Validate(out _),"unbound wearable accepted");sources["actor"].BuilderBinding=null;Check(!new RemoteContext(op).Validate(out _),"removed book retained extended range");sources.Clear();});
+  Test("wearable does not extend ordinary crafting on server",()=>{sources["actor"]=new ZDO{BuilderBinding="A"};Check(!new RemoteContext(new Operation{Build=false,Point=new Vector3(-40,0,0)}).Validate(out _),"craft received wearable range");sources.Clear();});
+  Test("extended remote build observes gateway restrictions at both payment and output",()=>{Add("relay",5040,"RSN_RunicRelay");sources["actor"]=new ZDO{BuilderBinding="A",Position=new Vector3(5090,0,0)};sources["chest"]=new ZDO{Position=new Vector3(0,0,0)};var op=new Operation{Build=true,Point=new Vector3(5090,0,0)};var context=new RemoteContext(op);Check(context.Validate(out _),"remote wearable disconnected");var wood=new Debit("chest","Wood",1,1);var iron=new Debit("chest","Iron",1,1);Check(context.Allows(wood)&&!context.Allows(iron)&&GatewayRuntime.ValidatePlan(op,new[]{wood})&&!GatewayRuntime.ValidatePlan(op,new[]{iron}),"gateway restriction differs between payment/output");sources["actor"].BuilderBinding="B";Check(!GatewayRuntime.ValidatePlan(op,new[]{wood}),"rebound book accepted old payment");sources.Clear();});
   Console.WriteLine("Gateway runtime tests: "+passed+" passed (game stand-ins)");return 0;
  }catch(Exception e){Console.Error.WriteLine(e);return 1;}}
  internal static readonly Dictionary<string,ZDO> sources=new Dictionary<string,ZDO>();

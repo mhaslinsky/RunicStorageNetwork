@@ -44,7 +44,7 @@ namespace RunicStorageNetwork {
   internal static IEnumerable<string> ContainerNetworks(Container c)=>containerNetworks.TryGetValue(c,out var networks)?networks:(IEnumerable<string>)Array.Empty<string>();
   internal static Core LabelRootSnapshot(string network)=>network!=null&&labelRoots.TryGetValue(network,out var root)&&root&&root.Valid?root:null;
   static readonly Dictionary<long,NetworkGraph> actorGraphs=new Dictionary<long,NetworkGraph>();
-  sealed class Selection {internal Vector3 Point;internal float Until;internal Core Core;}
+  sealed class Selection {internal Vector3 Point;internal float Until;internal Core Core;internal string Binding;}
   static readonly Dictionary<long,Selection> selections=new Dictionary<long,Selection>();
   static float next;static bool dirty=true,refreshing;static ulong accessRevision;
   internal static int DisplayRevision {get;private set;}
@@ -113,10 +113,12 @@ namespace RunicStorageNetwork {
    }finally{refreshing=false;}
   }
   internal static List<Container> Pool(Core core){Refresh();var n=core?core.GetComponent<NetworkMember>():null;return n&&pools.TryGetValue(n.Network,out var list)?list:new List<Container>();}
-  internal static Core Choose(Vector3 point,long actor){
-   if(UnloadedNetworks.Requested)UnloadedMultiplayer.Touch(point,actor);
-   if(!Plugin.Enabled)return null;Refresh();if(selections.TryGetValue(actor,out var cached)&&cached.Point==point&&Time.unscaledTime<cached.Until&&cached.Core&&cached.Core.Valid){UnloadedNetworks.Request(cached.Core);return cached.Core;}
-   var graph=ForActor(actor);string net=graph.Choose(Position(point),n=>true);var core=net!=null&&graph.Roots.TryGetValue(net,out var root)?Member(root)?.GetComponent<Core>():null;selections[actor]=new Selection{Point=point,Until=Time.unscaledTime+.25f,Core=core};UnloadedNetworks.Request(core);return core;
+  internal static Core Choose(Vector3 point,long actor,string builderBinding=null){
+   if(UnloadedNetworks.Requested)UnloadedMultiplayer.Touch(point,actor,builderBinding!=null);
+   if(!Plugin.Enabled)return null;Refresh();if(selections.TryGetValue(actor,out var cached)&&cached.Binding==builderBinding&&cached.Point==point&&Time.unscaledTime<cached.Until&&cached.Core&&cached.Core.Valid){UnloadedNetworks.Request(cached.Core);return cached.Core;}
+   var graph=ForActor(actor);string net=builderBinding==null?graph.Choose(Position(point),n=>true):graph.BoundNetwork(builderBinding);
+   if(builderBinding!=null&&!graph.Supplies(net,Position(point),n=>true,true))net=null;
+   var core=net!=null&&graph.Roots.TryGetValue(net,out var root)?Member(root)?.GetComponent<Core>():null;selections[actor]=new Selection{Point=point,Until=Time.unscaledTime+.25f,Core=core,Binding=builderBinding};UnloadedNetworks.Request(core);return core;
   }
   internal static NetworkGraph ForActor(long actor){
    if(UnloadedNetworks.Enabled)return GatewayRuntime.Graph(actor);
@@ -127,9 +129,9 @@ namespace RunicStorageNetwork {
    Refresh();var member=core?core.GetComponent<NetworkMember>():null;
    var graph=ForActor(actor);return member&&graph.Nodes.TryGetValue(member.Id,out var root)&&root.Confirmed&&graph.Covers(root.Network,Position(point),n=>true);
   }
-  internal static bool Supplies(Core core,Vector3 point,long actor){
+  internal static bool Supplies(Core core,Vector3 point,long actor,string builderBinding=null){
    Refresh();var member=core?core.GetComponent<NetworkMember>():null;
-   var graph=ForActor(actor);return member&&graph.Nodes.TryGetValue(member.Id,out var root)&&root.Confirmed&&graph.Supplies(root.Network,Position(point),n=>true);
+   var graph=ForActor(actor);return member&&graph.Nodes.TryGetValue(member.Id,out var root)&&root.Confirmed&&(builderBinding==null||graph.BoundNetwork(builderBinding)==root.Network)&&graph.Supplies(root.Network,Position(point),n=>true,builderBinding!=null);
   }
   internal static Dictionary<string,string> Candidates(NetworkMember relay,long actor){
    Refresh();return Graph.Candidates(Position(relay.transform.position),n=>n.Id!=relay.Id&&Allowed(n,actor)&&NetworkAllowed(n.Network,actor));

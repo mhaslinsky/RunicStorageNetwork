@@ -8,8 +8,8 @@ namespace RunicStorageNetwork.Logic {
   public readonly Dictionary<string,string> GatewayBindings=new Dictionary<string,string>(StringComparer.Ordinal);
   public readonly Dictionary<string,string> GatewayStates=new Dictionary<string,string>(StringComparer.Ordinal);
   readonly Dictionary<string,string> localComponents=new Dictionary<string,string>(StringComparer.Ordinal);
-  readonly Dictionary<Point,HashSet<string>> supplyComponents=new Dictionary<Point,HashSet<string>>();
-  readonly Dictionary<(string,Point,Point),int> routes=new Dictionary<(string,Point,Point),int>();
+  readonly Dictionary<(Point,bool),HashSet<string>> supplyComponents=new Dictionary<(Point,bool),HashSet<string>>();
+  readonly Dictionary<(string,Point,Point,bool),int> routes=new Dictionary<(string,Point,Point,bool),int>();
   public bool HasGateways=>GatewayStates.Count>0;
   sealed class Islands {
    readonly Dictionary<string,string> parent=new Dictionary<string,string>();
@@ -36,7 +36,7 @@ namespace RunicStorageNetwork.Logic {
    }
   }
   static NetworkGraph WithGateways(NetworkNode[] source,double range){
-   var nodes=source.Select(n=>new NetworkNode{Id=n.Id,Network=n.Network,Root=n.Root,Gateway=n.Gateway,Tag=n.Tag??"",Binding=n.Binding??"",Confirmed=n.Confirmed&&(!n.Root||!string.IsNullOrEmpty(n.Network)),Position=n.Position,Storage=n.Storage,Supply=n.Supply}).ToArray();
+   var nodes=source.Select(n=>new NetworkNode{Id=n.Id,Network=n.Network,Identity=n.Root?n.Network:null,Root=n.Root,Gateway=n.Gateway,Tag=n.Tag??"",Binding=n.Binding??"",Confirmed=n.Confirmed&&(!n.Root||!string.IsNullOrEmpty(n.Network)),Position=n.Position,Storage=n.Storage,Supply=n.Supply}).ToArray();
    foreach(var tag in nodes.Where(n=>n.Gateway&&n.Tag!="").GroupBy(n=>n.Tag,StringComparer.Ordinal)){
     var pair=tag.ToArray();if(pair.Length!=2)continue;
     var bound=pair.FirstOrDefault(n=>n.Binding!="");if(bound!=null)foreach(var n in pair)if(n.Binding=="")n.Binding=bound.Binding;
@@ -81,23 +81,25 @@ namespace RunicStorageNetwork.Logic {
   }
   // Item restrictions apply to the route, not to the entire network. A normal
   // alternate path wins even if a shorter route crosses a gateway.
-  public bool CanTransfer(string network,Point source,Point consumer,bool teleportable){
-   int route=TransferRoute(network,source,consumer);return route==1||route==2&&teleportable;
+  public bool CanTransfer(string network,Point source,Point consumer,bool teleportable,bool linkedConsumer=false){
+   int route=TransferRoute(network,source,consumer,linkedConsumer);return route==1||route==2&&teleportable;
   }
   // 0: no route; 1: ordinary local path; 2: requires a gateway. Cached on the
   // immutable topology snapshot, independent of item/stack/count changes.
-  public int TransferRoute(string network,Point source,Point consumer){
+  public int TransferRoute(string network,Point source,Point consumer,bool linkedConsumer=false){
    if(string.IsNullOrEmpty(network))return 0;
-   if(!HasGateways)return Covers(network,source,n=>true)&&Supplies(network,consumer,n=>true)?1:0;
-   var key=(network,source,consumer);if(routes.TryGetValue(key,out int cached))return cached;
-   if(!supplyComponents.TryGetValue(consumer,out var local)){
+   if(!HasGateways)return Covers(network,source,n=>true)&&Supplies(network,consumer,n=>true,linkedConsumer)?1:0;
+   var key=(network,source,consumer,linkedConsumer);if(routes.TryGetValue(key,out int cached))return cached;
+   var supplyKey=(consumer,linkedConsumer);
+   if(!supplyComponents.TryGetValue(supplyKey,out var local)){
     if(supplyComponents.Count>=128)supplyComponents.Clear();
-    local=new HashSet<string>(Nodes.Values.Where(n=>Hops.ContainsKey(n.Id)&&n.Position.Distance2(consumer)<=n.Supply*n.Supply).Select(n=>localComponents[n.Id]),StringComparer.Ordinal);supplyComponents[consumer]=local;
+    var candidates=linkedConsumer?Near(consumer).Where(n=>!n.Gateway):Nodes.Values.Where(n=>n.Position.Distance2(consumer)<=n.Supply*n.Supply);
+    local=new HashSet<string>(candidates.Where(n=>Hops.ContainsKey(n.Id)).Select(n=>localComponents[n.Id]),StringComparer.Ordinal);supplyComponents[supplyKey]=local;
    }
    int result=0;bool supplied=false,checkedSupply=false;
    foreach(var n in Nodes.Values)if(n.Network==network&&Hops.ContainsKey(n.Id)&&n.Position.Distance2(source)<=n.Storage*n.Storage){
     if(local.Contains(localComponents[n.Id])){result=1;break;}
-    if(!checkedSupply){supplied=Supplies(network,consumer,c=>true);checkedSupply=true;}
+    if(!checkedSupply){supplied=Supplies(network,consumer,c=>true,linkedConsumer);checkedSupply=true;}
     if(supplied)result=2;
    }
    if(routes.Count>=16384)routes.Clear();routes[key]=result;return result;

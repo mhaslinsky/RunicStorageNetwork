@@ -160,9 +160,9 @@ if($Tests){
  # Production gateway cache/material routing, with game records as stand-ins.
  $gatewayProbe=Join-Path $Output 'GatewayRuntimeTests.exe'
  $gatewayRsp=Join-Path $Output 'GatewayRuntimeTests.rsp'
- $gatewayMethods=Read-TestMethod 'src\RemoteContext.cs' 'internal bool Allows'
+ $gatewayMethods=(Read-TestMethod 'src\RemoteContext.cs' 'internal bool Allows')+"`n"+(Read-TestMethod 'src\RemoteContext.cs' 'internal bool Connected')
  $gatewayExtracted=Join-Path $Output 'GatewayRouteMethods.cs'
- [IO.File]::WriteAllText($gatewayExtracted,"using RunicStorageNetwork.Logic; namespace RunicStorageNetwork { partial class RemoteContext {`n"+$gatewayMethods+"`n} }")
+ [IO.File]::WriteAllText($gatewayExtracted,"using UnityEngine; using RunicStorageNetwork.Logic; namespace RunicStorageNetwork { partial class RemoteContext {`n"+$gatewayMethods+"`n} }")
  $gatewayLines=@('/nologo','/nostdlib+','/langversion:9','/target:exe','/nowarn:0649','/define:GATEWAY_RUNTIME_TESTS',('/out:"'+$gatewayProbe+'"'))
  $gatewayLines+=@($refs | Select-Object -Unique | ForEach-Object {'/reference:"'+$_+'"'})
  $gatewayLines+=@('src\GatewayRuntime.cs','src\GatewayGraph.cs','src\NetworkGraph.cs','src\NetworkLabels.cs','src\Planner.cs','tests\GatewayRuntimeTests.cs' | ForEach-Object {'"'+(Join-Path $root $_)+'"'})
@@ -172,4 +172,19 @@ if($Tests){
  if($LASTEXITCODE -ne 0){throw 'Gateway runtime test compilation failed'}
  & $gatewayProbe
  if($LASTEXITCODE -ne 0){throw 'Gateway runtime tests failed'}
+ # The real per-item binding, equipment synchronization and build/craft entry selection.
+ $builderProbe=Join-Path $Output 'BuilderCodexRuntimeTests.exe'
+ $builderRsp=Join-Path $Output 'BuilderCodexRuntimeTests.rsp'
+ $builderExtracted=Join-Path $Output 'BuilderContextMethod.cs'
+ $contextMethod=Read-TestMethod 'src\Actions.cs' 'internal static Core Context'
+ [IO.File]::WriteAllText($builderExtracted,"using UnityEngine; namespace RunicStorageNetwork { partial class Actions {`n"+$contextMethod+"`n} }")
+ $builderLines=@('/nologo','/nostdlib+','/langversion:9','/target:exe','/nowarn:0649','/define:BUILDER_RUNTIME_TESTS',('/out:"'+$builderProbe+'"'))
+ $builderLines+=@($refs | Select-Object -Unique | ForEach-Object {'/reference:"'+$_+'"'})
+ $builderLines+=@('src\BuilderCodex.cs','src\NetworkGraph.cs','src\GatewayGraph.cs','src\NetworkLabels.cs','src\TranslationCatalog.cs','tests\BuilderCodexRuntimeTests.cs' | ForEach-Object {'"'+(Join-Path $root $_)+'"'})
+ $builderLines+='"'+$builderExtracted+'"'
+ [IO.File]::WriteAllLines($builderRsp,$builderLines)
+ & "$editor\NetCoreRuntime\dotnet.exe" "$editor\DotNetSdkRoslyn\csc.dll" "@$builderRsp"
+ if($LASTEXITCODE -ne 0){throw 'Builder runtime test compilation failed'}
+ & $builderProbe
+ if($LASTEXITCODE -ne 0){throw 'Builder runtime tests failed'}
 }

@@ -52,7 +52,7 @@ static class ZoneSystem {public static Vector2s GetZone(Vector3 p)=>new Vector2s
 static class ZDOVars {public const int s_creator=1,s_enabled=2,s_permitted=3,s_items=4,s_inUse=5;}
 class ZDO {
  public ZDOID m_uid;public uint DataRevision;public ushort OwnerRevision;public long Owner=7,Creator=1,PlayerId=1;public int Schema=1,Prefab,InUse;public bool Valid=true,Guard;
- public string Network="network";public Vector3 Position;public byte[] Bytes=Array.Empty<byte>();
+ public string Network="network",BuilderBinding;public Vector3 Position;public byte[] Bytes=Array.Empty<byte>();
  public bool IsValid()=>Valid;public int GetPrefab()=>Prefab;public Vector3 GetPosition()=>Position;public Quaternion GetRotation()=>new Quaternion();
  public long GetLong(int key,long fallback)=>Creator;public long GetLong(string key,long fallback)=>fallback;
  public int GetInt(string key,int fallback)=>Schema;public int GetInt(int key,int fallback)=>key==ZDOVars.s_inUse?InUse:0;
@@ -102,6 +102,7 @@ class Inventory {
  public void Save(ZPackage p){p.Put((byte[])Bytes.Clone());}public void RemoveAll(){Bytes=Array.Empty<byte>();}
 }
 namespace RunicStorageNetwork {
+ static class BuilderCodex {internal static string RemoteBinding(ZDO z)=>z?.BuilderBinding;}
  class ConfigEntry {public bool Value;}
  static class Plugin {internal const string Guid="local.runicstoragenetwork";internal static bool Healthy=true;internal static ConfigEntry ExperimentalUnloadedNetworks=new ConfigEntry();internal static List<string> Messages=new List<string>();internal static void Info(string s)=>Messages.Add(s);internal static void Error(string s,Exception e){Messages.Add(s+": "+e.Message);}}
  class Core:MonoBehaviour {internal static HashSet<Core> Live=new HashSet<Core>();internal ZNetView view;internal void Detach(){Live.Remove(this);}}
@@ -127,7 +128,8 @@ namespace RunicStorageNetwork {
  static partial class Topology {
   internal static HashSet<NetworkMember> Members=new HashSet<NetworkMember>();internal static Graph Graph=new Graph();internal static int Changes;internal static void Dirty(){Changes++;}internal static Number Position(Vector3 p)=>new Number{X=p.x,Y=p.y,Z=p.z};
   internal static Graph ForActor(long actor)=>Graph;internal static NetworkMember Member(string id)=>UnloadedNetworks.Members.FirstOrDefault(m=>m.Id==id);
-  internal static void Refresh(){}internal static Core Choose(Vector3 at,long actor)=>Core.Live.FirstOrDefault();
+  internal static Vector3 ChosenPoint;internal static string ChosenBinding;
+  internal static void Refresh(){}internal static Core Choose(Vector3 at,long actor,string binding=null){ChosenPoint=at;ChosenBinding=binding;return binding==""?null:Core.Live.FirstOrDefault();}
  }
  static class Transport {
   internal class Lease {internal Container Container;}internal static Dictionary<Inventory,Lease> Leases=new Dictionary<Inventory,Lease>();
@@ -159,7 +161,7 @@ static class UnloadedNetworkRuntimeTests {
  static readonly Dictionary<string,Action<long,ZPackage>> handlers=new Dictionary<string,Action<long,ZPackage>>();
  static void Receive(string name,long sender,ZPackage p){if(handlers.Count==0)UnloadedMultiplayer.Register((key,handle)=>handlers[key]=handle);handlers[name](sender,new ZPackage(p.GetArray()));}
  static ZDO Actor(){var z=Record("Player",10,0);z.Owner=17;return z;}
- static void Query(int token=1,Vector3 at=default,long sender=17,long player=1){var p=new ZPackage();p.Write(token);p.Write(new ZDOID{Id=10});p.Write(player);p.Write(at);Receive("unloaded_query",sender,p);}
+ static void Query(int token=1,Vector3 at=default,long sender=17,long player=1,bool building=false){var p=new ZPackage();p.Write(token);p.Write(new ZDOID{Id=10});p.Write(player);p.Write(at);p.Write(building);Receive("unloaded_query",sender,p);}
  static void Client(){ZNet.instance.Server=false;Actor();Player.m_localPlayer=new Player{Id=new ZDOID{Id=10}};Start();UnloadedMultiplayer.Touch(default,1);}
  static ZPackage Catalog(int generation,int page,params ZDO[] records){
   var p=new ZPackage();p.Write(1);p.Write(true);p.Write(generation);p.Write(page);p.Write(Math.Max(1,(records.Length+63)/64));p.Write(records.Length);
@@ -241,6 +243,8 @@ static class UnloadedNetworkRuntimeTests {
   Test("unchanged ownership attempts do not trigger resource replication",()=>{Start();Request();Actor();Query();UnloadedMultiplayer.Tick();ZDOMan.instance.Sent.Clear();Call("OwnershipChanged",chest);Call("OwnershipChanged",chest);UnloadedMultiplayer.Tick();Check(ZDOMan.instance.Sent.Count==0,"blocked release requeued unchanged inventory");});
   Test("reopening after subscription expiry uses a newer generation",()=>{Start();Request();Actor();Query();UnloadedMultiplayer.Tick();var a=new ZPackage(Transport.Sent.Last().Bytes);a.ReadInt();a.ReadBool();int first=a.ReadInt();Time.unscaledTime=7;UnloadedMultiplayer.Tick();Query();UnloadedMultiplayer.Tick();var b=new ZPackage(Transport.Sent.Last().Bytes);b.ReadInt();b.ReadBool();Check(b.ReadInt()>first,"reopened response appears older to client");});
   Test("small player movement does not retransmit the entire same network",()=>{Start();Request();Actor();Query();UnloadedMultiplayer.Tick();Transport.Sent.Clear();ZDOMan.instance.Sent.Clear();Time.unscaledTime=1;Query(at:new Vector3(1,0,0));UnloadedMultiplayer.Tick();Check(Transport.Sent.Count==0&&ZDOMan.instance.Sent.Count==0,"same network re-exported");});
+  Test("builder discovery uses synchronized binding and actual player position",()=>{Start();Request();Actor().BuilderBinding="saved-core";Query(at:new Vector3(10,0,0),building:true);UnloadedMultiplayer.Tick();Check(Topology.ChosenBinding=="saved-core"&&Topology.ChosenPoint.x==0,"client point/binding used instead of authenticated actor");});
+  Test("ordinary discovery ignores equipped builder binding",()=>{Start();Request();Actor().BuilderBinding="saved-core";Query();UnloadedMultiplayer.Tick();Check(Topology.ChosenBinding==null,"book hijacked crafting or terminal discovery");});
   Test("missing-record requests cannot retrieve unrelated world data",()=>{Start();Request();Actor();Query();UnloadedMultiplayer.Tick();var catalog=new ZPackage(Transport.Sent.Last().Bytes);catalog.ReadInt();catalog.ReadBool();int version=catalog.ReadInt();ZDOMan.instance.Sent.Clear();var p=new ZPackage();p.Write(1);p.Write(version);p.Write(2);p.Write(new ZDOID{Id=10});p.Write(chest.m_uid);Receive("unloaded_missing",17,p);UnloadedMultiplayer.Tick();Check(ZDOMan.instance.Sent.Count==1&&ZDOMan.instance.Sent[0].Id==chest.m_uid,"unadvertised source sent");});
   Test("client missing-data recovery stops when there is no access",()=>{Client();chest.DataRevision=1;var p=Catalog(1,0,chest);ZDOMan.instance.m_objectsByID.Remove(chest.m_uid);Receive("unloaded_catalog",7,p);UnloadedMultiplayer.Tick();Transport.Sent.Clear();Time.unscaledTime=10;UnloadedMultiplayer.Tick();Check(Transport.Sent.Count==0,"idle recovery continued");UnloadedMultiplayer.Touch(default,1);UnloadedMultiplayer.Tick();Check(Transport.Sent.Any(s=>s.Name=="unloaded_missing"),"reopening did not recover missing record");});
   Test("large discovery is delivered across bounded frames without dropping chests",()=>{foreach(int i in Enumerable.Range(100,130))Record("ModdedDrawer",i,5);Start();Request();Actor();Query();for(int i=0;i<10;i++){int before=ZDOMan.instance.Sent.Count;UnloadedMultiplayer.Tick();UnloadedNetworks.Tick();Check(ZDOMan.instance.Sent.Count-before<=64,"native record frame budget exceeded");}Check(ZDOMan.instance.Sent.Select(s=>s.Id).Distinct().Count()==132&&Transport.Sent.Count(s=>s.Name=="unloaded_catalog")==3,"paged discovery lost records");});

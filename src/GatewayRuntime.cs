@@ -50,11 +50,12 @@ namespace RunicStorageNetwork {
    var consumer=RemoteContext.Data(op.Build?op.Actor:op.Station);
    if(consumer==null||!graph.Nodes.TryGetValue(R.Key(op.Core),out var root))return false;
    var point=Topology.Position(consumer.GetPosition());
-   return plan.All(d=>d.Source=="player"||RemoteContext.Source(d.Source) is ZDO source&&graph.CanTransfer(root.Network,Topology.Position(source.GetPosition()),point,Teleportable(d.Item)));
+   string binding=BuilderCodex.ForOperation(op);if(binding!=null&&graph.BoundNetwork(binding)!=root.Network)return false;
+   return plan.All(d=>d.Source=="player"||RemoteContext.Source(d.Source) is ZDO source&&graph.CanTransfer(root.Network,Topology.Position(source.GetPosition()),point,Teleportable(d.Item),binding!=null));
   }
-  internal static IEnumerable<Stock> Filter(NetworkGraph graph,string network,Vector3 source,Vector3 consumer,IEnumerable<Stock> stock){
+  internal static IEnumerable<Stock> Filter(NetworkGraph graph,string network,Vector3 source,Vector3 consumer,IEnumerable<Stock> stock,bool linkedConsumer=false){
    if(!graph.HasGateways)return stock;
-   int route=graph.TransferRoute(network,Topology.Position(source),Topology.Position(consumer));
+   int route=graph.TransferRoute(network,Topology.Position(source),Topology.Position(consumer),linkedConsumer);
    return route==1?stock:route==2?stock.Where(s=>Teleportable(s.Item)):Enumerable.Empty<Stock>();
   }
   internal static Vector3 Consumer(long player){
@@ -65,7 +66,7 @@ namespace RunicStorageNetwork {
    if(!UnloadedNetworks.Enabled||!Topology.Graph.HasGateways)return stock;
    var graph=Topology.ForActor(actor);var member=core.GetComponent<NetworkMember>();
    string network=graph.Nodes.TryGetValue(member.Id,out var root)?root.Network:"";
-   return Filter(graph,network,c.transform.position,point??Consumer(actor),stock);
+   return Filter(graph,network,c.transform.position,point??Consumer(actor),stock,point==null&&BuilderCodex.Building(actor));
   }
  }
 }

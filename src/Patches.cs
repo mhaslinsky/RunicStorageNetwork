@@ -11,6 +11,8 @@ using RunicStorageNetwork.Logic;
 namespace RunicStorageNetwork {
  internal static class Patches {
   internal static void Install(Harmony h){
+   Patch(h,typeof(Humanoid),"SetupEquipment",Type.EmptyTypes,null,nameof(BuilderEquipped));
+   Patch(h,typeof(ItemDrop.ItemData),"GetTooltip",new[]{typeof(ItemDrop.ItemData),typeof(int),typeof(bool),typeof(float),typeof(int),typeof(bool)},null,nameof(BuilderTooltip));
    Patch(h,typeof(TextInput),"RequestText",new[]{typeof(TextReceiver),typeof(string),typeof(int)},nameof(TextPromptBefore),nameof(TextPromptAfter));
    Patch(h,typeof(Container),"GetHoverText",Type.EmptyTypes,null,nameof(ContainerInfo));
    Patch(h,typeof(Hud),"SetupPieceInfo",new[]{typeof(Piece)},null,nameof(RelayPlacementInfo));
@@ -43,6 +45,8 @@ namespace RunicStorageNetwork {
    Plugin.Info("Patch OK: "+type.Name+"."+target);
   }
   static void TextPromptBefore(TextInput __instance){NetworkRenameStyle.Reset(__instance);}
+  static void BuilderEquipped(Humanoid __instance)=>BuilderCodex.EquipmentChanged(__instance);
+  static void BuilderTooltip(ItemDrop.ItemData __0,ref string __result){__result+=BuilderCodex.Tooltip(__0);}
   static void TextPromptAfter(TextInput __instance,TextReceiver __0){if(__0 is NetworkName||__0 is Gateway)NetworkRenameStyle.Apply(__instance);}
   static void ContainerInfo(Container __instance,ref string __result){
    string text=ContainerHover.Text(__instance);if(text.Length>0)__result+="\n"+text;

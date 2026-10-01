@@ -112,7 +112,7 @@ namespace RunicStorageNetwork {
   ConfigEntry<string> Names(string name,string value,string description)=>Config.Bind("Containers",name,value,new ConfigDescription(description,null,new ConfigurationManagerAttributes{IsAdminOnly=true}));
   ConfigEntry<string> Tools(string name,string value,string description)=>Config.Bind("Building",name,value,new ConfigDescription(description,null,new ConfigurationManagerAttributes{IsAdminOnly=true}));
   void CheckIds(){
-   foreach(string id in new[]{"Stone","FineWood","Chain","Iron","SurtlingCore","GreydwarfEye","Silver","Crystal","YggdrasilWood","Eitr","LinenThread","LeatherScraps","JuteRed","forge","piece_workbench","Hammer"})if(!PrefabManager.Instance.GetPrefab(id)){Disable("Missing prefab "+id);Log.LogError("[RSN] Required prefab ID unresolved: "+id);}
+   foreach(string id in new[]{"Stone","FineWood","Chain","Iron","SurtlingCore","GreydwarfEye","Silver","Crystal","YggdrasilWood","Eitr","BlackCore","LinenThread","LeatherScraps","JuteRed","forge","blackforge","piece_workbench","Hammer"})if(!PrefabManager.Instance.GetPrefab(id)){Disable("Missing prefab "+id);Log.LogError("[RSN] Required prefab ID unresolved: "+id);}
    try{CoreMaterials.Apply(corePrefab);}catch(Exception e){Error("Native core materials failed; bundle materials retained",e);}
    try{CoreMaterials.Apply(relayPrefab,true);}catch(Exception e){Error("Native relay materials failed; bundle materials retained",e);}
    try{TerminalMaterials.Apply(terminalPrefab,id=>PrefabManager.Instance.GetPrefab(id));}catch(Exception e){Error("Native terminal materials failed; bundle materials retained",e);}

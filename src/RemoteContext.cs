@@ -17,6 +17,7 @@ namespace RunicStorageNetwork {
   readonly List<NetworkNode> nodes=new List<NetworkNode>();
   bool repaired;
   Vector3 consumer;
+  string builderBinding;
   string Network=>Graph.Nodes.TryGetValue(R.Key(op.Core),out var root)?root.Network:"";
   static ZNetScene catalogScene;
   static float wardRange,extensionRange;
@@ -65,6 +66,7 @@ namespace RunicStorageNetwork {
    reason="supply unavailable";if(!Plugin.Enabled||!ZNetScene.instance||ZDOMan.instance==null)return false;
    if(!Actor(op.Actor,op.Peer,op.PlayerId,out var actor,out reason))return false;
    var point=actor.GetPosition();Piece.Requirement[] req;
+   builderBinding=op.Build?BuilderCodex.RemoteBinding(actor):null;
    if(op.Withdrawal){
     if(!op.ReadRequirements(out reason))return false;
     reason="terminal unavailable";if(!TerminalPoint(point,out point))return false;
@@ -132,7 +134,9 @@ namespace RunicStorageNetwork {
    Graph=NetworkGraph.Automatic(nodes,Plugin.RelayLink.Value);
    Plugin.Debug(op.Id+" rebuilt component from synchronized records; nodes="+nodes.Count);
   }
-  bool Connected(Vector3 point)=>Graph.Nodes.TryGetValue(R.Key(op.Core),out var root)&&root.Root&&root.Confirmed&&Graph.Supplies(root.Network,Topology.Position(point),n=>true);
+  internal bool Connected(Vector3 point){
+   return Graph.Nodes.TryGetValue(R.Key(op.Core),out var root)&&root.Root&&root.Confirmed&&(builderBinding==null||Graph.BoundNetwork(builderBinding)==root.Network)&&Graph.Supplies(root.Network,Topology.Position(point),n=>true,builderBinding!=null);
+  }
   int Level(ZDO z,CraftingStation station){
    int level=1;var kinds=new HashSet<string>(StringComparer.Ordinal);
    foreach(var candidate in Around(z.GetPosition(),extensionRange)){
@@ -155,10 +159,10 @@ namespace RunicStorageNetwork {
    reason="network path/storage coverage unavailable";if(!Graph.Covers(Network,Topology.Position(z.GetPosition()),n=>true)){RepairGraph();if(!Graph.Covers(Network,Topology.Position(z.GetPosition()),n=>true))return false;}
    reason="access denied";if(!Ward(z.GetPosition()))return false;reason="available";return true;
   }
-  internal IEnumerable<Stock> Filter(ZDO source,IEnumerable<Stock> stock)=>UnloadedNetworks.Enabled?GatewayRuntime.Filter(Graph,Network,source.GetPosition(),consumer,stock):stock;
+  internal IEnumerable<Stock> Filter(ZDO source,IEnumerable<Stock> stock)=>UnloadedNetworks.Enabled?GatewayRuntime.Filter(Graph,Network,source.GetPosition(),consumer,stock,builderBinding!=null):stock;
   internal bool Allows(Debit debit){
    if(!UnloadedNetworks.Enabled||debit.Source=="player")return true;
-   var source=Source(debit.Source);return source!=null&&Graph.CanTransfer(Network,Topology.Position(source.GetPosition()),Topology.Position(consumer),GatewayRuntime.Teleportable(debit.Item));
+   var source=Source(debit.Source);return source!=null&&Graph.CanTransfer(Network,Topology.Position(source.GetPosition()),Topology.Position(consumer),GatewayRuntime.Teleportable(debit.Item),builderBinding!=null);
   }
   internal bool OwnerSource(Container c,out string reason,bool ownLease=false){
    reason="unloaded";var v=R.View(c);if(!c||!R.Valid(v)||!v.IsOwner()||!UnloadedNetworks.CanOwn(c))return false;

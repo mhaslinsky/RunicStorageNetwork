@@ -105,7 +105,7 @@ namespace RunicStorage.Build {
    var prefab=bundle.LoadAsset<GameObject>(BuilderAsset);Check(prefab&&bundle.LoadAsset<Sprite>(BuilderIcon),"Builder bundle assets missing");
    ValidateBuilderVisual(prefab);
    PreviewBuilderEquipment(prefab,output);
-   File.WriteAllText(Path.Combine(output,"BuilderCodexAssetReport.json"),"{\"trianglesPerVisual\":1389,\"renderersPerVisual\":9,\"attachment\":\"attach_Hips\",\"slot\":\"Utility\",\"recipe\":false,\"bundleReload\":true,\"nativeGameAssetsBundled\":false,\"gameValidated\":false}");
+   File.WriteAllText(Path.Combine(output,"BuilderCodexAssetReport.json"),"{\"trianglesPerVisual\":1389,\"renderersPerVisual\":9,\"attachment\":\"attach_Hips\",\"slot\":\"Utility\",\"runtimeComponentsInBundle\":false,\"bundleReload\":true,\"nativeGameAssetsBundled\":false,\"gameValidated\":false}");
   }
   static string[] PreparedAssetNames()=>new[]{Root+"/RSN_NetworkCore.prefab",Root+"/RSN_CoreIcon.png",Root+"/RSN_RunicRelay.prefab",Root+"/RSN_RelayIcon.png",TerminalAsset,TerminalIcon,CodexAsset,CodexIcon,GatewayAsset,GatewayIcon,BuilderAsset,BuilderIcon};
   public static void BuilderCodexBatch(){

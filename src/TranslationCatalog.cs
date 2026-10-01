@@ -27,7 +27,13 @@ namespace RunicStorageNetwork {
    Add("codex_description","Search connected storage and retrieve items. Place within a core's or connected relay's supply range.","Позволяет искать и забирать предметы из подключённых хранилищ. Разместите в зоне снабжения ядра или подключённого реле.");
    Add("runic_codex_name","Runic Codex","Рунный кодекс");
    Add("builder_codex_name","Runic Builder's Codex","Рунный кодекс строителя");
-   Add("builder_codex_description","A rune-bound book carried on the belt. Its pages await a builder's knowledge.","Книга с рунами, которую носят на поясе. Её страницы ждут знаний строителя.");
+   Add("builder_codex_description","Bind this book to a Network Core and equip it to build using that network's materials within relay link range.","Привяжите книгу к ядру сети и экипируйте её, чтобы строить из материалов этой сети на расстоянии связи с реле или ядром.");
+   Add("builder_unbound","Not bound to a network","Не привязан к сети");
+   Add("builder_binding","Bound network: {0}","Привязанная сеть: {0}");
+   Add("builder_bound","Builder's Codex bound to: {0}","Кодекс строителя привязан: {0}");
+   Add("builder_unnamed","Unnamed network","Безымянная сеть");
+   Add("builder_range","Building link range: {0} m","Дальность связи для строительства: {0} м");
+   Add("builder_bind_hint","Use on a Network Core to bind or change the binding.","Используйте на ядре сети, чтобы привязать или сменить привязку.");
    Add("runic_codex_description","A rune-bound book used to build a Storage Codex.","Книга с рунами для постройки Кодекса запасов.");
    Add("codex_no_network","Outside network coverage","Вне зоны действия сети");
    Add("relay_description","Automatically connects to nearby cores and relays. Extends shared storage coverage for crafting, upgrades and building.","Автоматически соединяется с соседними ядрами и реле. Расширяет общую сеть хранилищ для крафта, улучшений и строительства.");

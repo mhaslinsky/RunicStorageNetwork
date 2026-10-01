@@ -9,7 +9,7 @@ namespace RunicStorageNetwork.Logic {
   public double Distance2(Point p){double x=X-p.X,y=Y-p.Y,z=Z-p.Z;return x*x+y*y+z*z;}
  }
  public sealed class NetworkNode {
-  public string Id,Network;
+  public string Id,Network,Identity;
   public bool Gateway;
   public string Tag="",Binding="";
   public Point Position;
@@ -23,6 +23,7 @@ namespace RunicStorageNetwork.Logic {
   public readonly Dictionary<string,int> Hops=new Dictionary<string,int>(StringComparer.Ordinal);
   public readonly Dictionary<string,string> Parent=new Dictionary<string,string>(StringComparer.Ordinal);
   public readonly Dictionary<string,string> Roots=new Dictionary<string,string>(StringComparer.Ordinal);
+  readonly Dictionary<string,string> boundNetworks=new Dictionary<string,string>(StringComparer.Ordinal);
   readonly double range;
   readonly Dictionary<(int,int,int),List<NetworkNode>> cells=new Dictionary<(int,int,int),List<NetworkNode>>();
   (int,int,int) Cell(Point p)=>((int)Math.Floor(p.X/range),(int)Math.Floor(p.Y/range),(int)Math.Floor(p.Z/range));
@@ -38,10 +39,14 @@ namespace RunicStorageNetwork.Logic {
     if(!multipleRoots&&g.Count()!=1)continue;var root=g.OrderBy(n=>n.Id,StringComparer.Ordinal).First();Roots[root.Network]=root.Id;var queue=new Queue<string>();foreach(var source in g){Hops[source.Id]=0;queue.Enqueue(source.Id);}
     while(queue.Count>0){string id=queue.Dequeue();foreach(string next in Neighbors[id])if(!Hops.ContainsKey(next)){Hops[next]=Hops[id]+1;Parent[next]=id;queue.Enqueue(next);}}
    }
+   foreach(var n in Nodes.Values.Where(n=>n.Root&&n.Confirmed&&Hops.ContainsKey(n.Id))){
+    string identity=n.Identity??n.Network;if(string.IsNullOrEmpty(identity))continue;
+    boundNetworks[identity]=boundNetworks.TryGetValue(identity,out var prior)&&prior!=n.Network?null:n.Network;
+   }
   }
   public static NetworkGraph Automatic(IEnumerable<NetworkNode> input,double linkRange){
    var source=input.ToArray();if(source.Any(n=>n.Gateway))return WithGateways(source,linkRange);
-   var nodes=source.Select(n=>new NetworkNode{Id=n.Id,Network=n.Network,Root=n.Root,Confirmed=n.Confirmed&&(!n.Root||!string.IsNullOrEmpty(n.Network)),Position=n.Position,Storage=n.Storage,Supply=n.Supply}).ToArray();
+   var nodes=source.Select(n=>new NetworkNode{Id=n.Id,Network=n.Network,Identity=n.Root?n.Network:null,Root=n.Root,Confirmed=n.Confirmed&&(!n.Root||!string.IsNullOrEmpty(n.Network)),Position=n.Position,Storage=n.Storage,Supply=n.Supply}).ToArray();
    // Use spatial buckets for adjacency even on unbound relays. Components are
    // derived, not persisted: removing a bridge splits them automatically.
    var spatial=new NetworkGraph(nodes.Select(n=>new NetworkNode{Id=n.Id,Network="",Confirmed=n.Confirmed,Position=n.Position}),linkRange);
@@ -73,7 +78,12 @@ namespace RunicStorageNetwork.Logic {
     .OrderBy(n=>n.Position.Distance2(point)).ThenBy(n=>n.Network,StringComparer.Ordinal).ThenBy(n=>n.Id,StringComparer.Ordinal).Select(n=>n.Network).FirstOrDefault();
   }
   public bool Covers(string network,Point point,Func<NetworkNode,bool> allowed)=>Nodes.Values.Any(n=>n.Network==network&&Hops.ContainsKey(n.Id)&&n.Position.Distance2(point)<=n.Storage*n.Storage&&allowed(n));
-  public bool Supplies(string network,Point point,Func<NetworkNode,bool> allowed)=>Nodes.Values.Any(n=>n.Network==network&&Hops.ContainsKey(n.Id)&&n.Position.Distance2(point)<=n.Supply*n.Supply&&allowed(n));
+  // A wearable is a leaf, never a graph node: it cannot relay to another player
+  // or connect nearby containers. The existing spatial index supplies its range.
+  public string BoundNetwork(string identity)=>identity!=null&&boundNetworks.TryGetValue(identity,out var network)?network:null;
+  public bool Supplies(string network,Point point,Func<NetworkNode,bool> allowed,bool linkedConsumer=false)=>linkedConsumer
+   ?Near(point).Any(n=>!n.Gateway&&n.Network==network&&Hops.ContainsKey(n.Id)&&allowed(n))
+   :Nodes.Values.Any(n=>n.Network==network&&Hops.ContainsKey(n.Id)&&n.Position.Distance2(point)<=n.Supply*n.Supply&&allowed(n));
   public IEnumerable<string> Pool(string network,IEnumerable<KeyValuePair<string,Point>> sources,Func<NetworkNode,bool> allowed)=>sources.Where(s=>Covers(network,s.Value,allowed)).Select(s=>s.Key).Distinct(StringComparer.Ordinal).OrderBy(s=>s,StringComparer.Ordinal);
   public static string AutoBinding(string saved,bool choiceRequired,bool complete,IEnumerable<string> candidates,out bool requireChoice){
    requireChoice=choiceRequired;if(!string.IsNullOrEmpty(saved)||choiceRequired||!complete)return saved;

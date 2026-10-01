@@ -1,4 +1,5 @@
 using System;
+using Jotunn.Configs;
 using Jotunn.Entities;
 using Jotunn.Managers;
 using UnityEngine;
@@ -24,9 +25,13 @@ namespace RunicStorageNetwork {
     m_maxStackSize=1,m_maxQuality=1,m_weight=1,m_teleportable=true,m_useDurability=false,m_icons=new[]{icon}
    };
    drop.m_itemData.m_dropPrefab=prefab;drop.m_itemData.m_stack=1;drop.m_itemData.m_quality=1;
-   // No recipe, status effect or building tool until the accessory's design is agreed.
-   if(!ItemManager.Instance.AddItem(new CustomItem(prefab,false)))throw new InvalidOperationException("Jotunn rejected Runic Builder's Codex");
-   prefab.SetActive(true);Plugin.Info(PrefabName+" registered as utility accessory (no recipe)");return prefab;
+   var config=new ItemConfig{
+    Name=drop.m_itemData.m_shared.m_name,Description=drop.m_itemData.m_shared.m_description,Icon=icon,
+    CraftingStation="blackforge",MinStationLevel=1,Amount=1,Enabled=true,RequireOnlyOneIngredient=false,
+    Requirements=new[]{new RequirementConfig(RunicCodexItem.PrefabName,1),new RequirementConfig("BlackCore",1),new RequirementConfig("Eitr",5),new RequirementConfig("Silver",2),new RequirementConfig("Crystal",2)}
+   };
+   if(!ItemManager.Instance.AddItem(new CustomItem(prefab,false,config)))throw new InvalidOperationException("Jotunn rejected Runic Builder's Codex");
+   prefab.SetActive(true);Plugin.Info(PrefabName+" registered with black forge recipe");return prefab;
   }
  }
 }
