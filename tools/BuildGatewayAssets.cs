@@ -41,23 +41,24 @@ namespace RunicStorage.Build {
    var b=prefab.GetComponentsInChildren<Renderer>().Select(r=>r.bounds).Aggregate((a,c)=>{a.Encapsulate(c);return a;});
    RenderIcon(prefab,b,Path.Combine(output,"gateway-preview.png"),RenderingPath.Forward,768,2.25f,new Vector3(3,1.75f,-7));
   }
-  // Rebuild only the newly approved asset; retain the prepared core/relay/codex
-  // assets in this isolated project. The bundle still contains every mod asset.
+  // Rebuild the new gateway/accessory, retaining prepared core/relay/codex assets
+  // in this isolated project. The bundle still contains every mod asset.
   public static void GatewayBatch(){
-   GameObject gateway=null;
+   GameObject gateway=null,builder=null;
    try{
     Check(!EditorApplication.isPlaying&&Application.unityVersion=="6000.0.75f1","Expected Editor-only Unity 6000.0.75f1");
     PlayerSettings.colorSpace=ColorSpace.Linear;string output=Arg("-rsnOutput");Directory.CreateDirectory(output);
     gateway=BuildGateway(output);
+    builder=BuildBuilderCodex(output);
     if(iconDonors){iconDonors.Unload(true);iconDonors=null;}
-    var names=new[]{Root+"/RSN_NetworkCore.prefab",Root+"/RSN_CoreIcon.png",Root+"/RSN_RunicRelay.prefab",Root+"/RSN_RelayIcon.png",TerminalAsset,TerminalIcon,CodexAsset,CodexIcon,GatewayAsset,GatewayIcon};
+    var names=PreparedAssetNames();
     foreach(string name in names)Check(AssetDatabase.LoadMainAssetAtPath(name),"Prepared asset missing: "+name);
     Check(BuildPipeline.BuildAssetBundles(output,new[]{new AssetBundleBuild{assetBundleName="rsn_core_windows",assetNames=names}},BuildAssetBundleOptions.ChunkBasedCompression|BuildAssetBundleOptions.StrictMode,BuildTarget.StandaloneWindows64),"Gateway bundle build failed");
     var bundle=AssetBundle.LoadFromFile(Path.Combine(output,"rsn_core_windows"));Check(bundle,"Bundle reopen failed");
-    try{foreach(string name in names)Check(bundle.LoadAsset<UnityEngine.Object>(name),"Bundle asset missing: "+name);ValidateGateway(bundle,gateway,output);}finally{bundle.Unload(true);}
+    try{foreach(string name in names)Check(bundle.LoadAsset<UnityEngine.Object>(name),"Bundle asset missing: "+name);ValidateGateway(bundle,gateway,output);ValidateBuilderBundle(bundle,output);}finally{bundle.Unload(true);}
     File.Copy(Root+"/RSN_CoreIcon.png",Path.Combine(output,"icon.png"),true);Debug.Log("RSN_GATEWAY_BUILD_SUCCESS");EditorApplication.Exit(0);
    }catch(Exception e){Debug.LogException(e);EditorApplication.Exit(1);}
-   finally{if(gateway)UnityEngine.Object.DestroyImmediate(gateway);if(iconDonors)iconDonors.Unload(true);}
+   finally{if(gateway)UnityEngine.Object.DestroyImmediate(gateway);if(builder)UnityEngine.Object.DestroyImmediate(builder);if(iconDonors)iconDonors.Unload(true);}
   }
  }
 }

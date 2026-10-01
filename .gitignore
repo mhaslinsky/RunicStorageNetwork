@@ -92,3 +92,12 @@
 !/model-sources/gateway/*.png
 !/model-sources/gateway/README.md
 !/GATEWAY_IMPLEMENTATION_RU.md
+!/tools/ExportBuilderCodex.py
+!/tools/BuildBuilderCodexAssets.cs
+!/tools/PreviewBuilderCodex.cs
+!/model-sources/builder-codex/
+/model-sources/builder-codex/*
+!/model-sources/builder-codex/*.fbx
+!/model-sources/builder-codex/*.json
+!/model-sources/builder-codex/icon.png
+!/model-sources/builder-codex/README.md

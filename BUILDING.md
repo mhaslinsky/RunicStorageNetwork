@@ -103,6 +103,20 @@ Manual validation on a backed-up test world: enter near the far end of a relay c
 
 ## Repository contents
 
+### Builder's Codex local preview
+
+With the separate Unity build project already prepared, run:
+
+```powershell
+.\tools\BuildGatewayPreview.ps1 -Asset builder-codex
+```
+
+This compiles the plugin, runs the isolated suite, builds a bundle containing all six model prefabs and their icons, and writes `dist/RunicStorageNetwork-<version>-builder-codex-preview.zip`. Model, icon and equipped mannequin screenshots are saved under the build's `artifacts` directory. The default gateway build also includes the new accessory. The authoring Blender project and installed game profiles are not modified.
+
+The accessory uses vanilla `ItemType.Utility` (the same slot as Megingjord) and rigid `attach_Hips` equipment attachment. Obtain it for local testing with `spawn RSN_RunicBuilderCodex 1` after enabling the game's developer console/commands. No recipe or special ability is registered. Test equip/unequip, drop/pickup, save/reload and movement with armour in game; Editor fit checks do not cover those interactions.
+
+### Source layout
+
 - `src/`: plugin and shared logic.
 - `tests/`: isolated logic tests.
 - `tools/Compile.ps1`: DLL and test compilation.

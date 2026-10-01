@@ -24,7 +24,7 @@ namespace RunicStorageNetwork {
   internal static ConfigEntry<string> AllowedContainers,DeniedContainers,DeniedComponents;
   internal static ConfigEntry<string> AllowedBuildTools,DeniedBuildTools,DeniedPieceComponents;
   internal static bool Healthy=true;
-  Harmony harmony; AssetBundle bundle; GameObject corePrefab,relayPrefab,terminalPrefab,codexPrefab,gatewayPrefab;
+  Harmony harmony; AssetBundle bundle; GameObject corePrefab,relayPrefab,terminalPrefab,codexPrefab,gatewayPrefab,builderCodexPrefab;
   internal static bool Enabled=>Healthy&&Supply.Value;
   internal new static void Info(string text)=>Log.LogInfo("[RSN] "+text);
   internal static void Debug(string text){if(DebugLogging.Value)Info(text);}
@@ -76,6 +76,7 @@ namespace RunicStorageNetwork {
     prefab.SetActive(true);Info("Bundle loaded; RSN_NetworkCore registered with Hammer");
     RegisterRelay();
     codexPrefab=RunicCodexItem.Register(bundle);
+    builderCodexPrefab=BuilderCodexItem.Register(bundle);
     terminalPrefab=TerminalPiece.Register(bundle);
     gatewayPrefab=Gateway.Register(bundle);
     PrefabManager.OnVanillaPrefabsAvailable+=CheckIds;
@@ -116,6 +117,7 @@ namespace RunicStorageNetwork {
    try{CoreMaterials.Apply(relayPrefab,true);}catch(Exception e){Error("Native relay materials failed; bundle materials retained",e);}
    try{TerminalMaterials.Apply(terminalPrefab,id=>PrefabManager.Instance.GetPrefab(id));}catch(Exception e){Error("Native terminal materials failed; bundle materials retained",e);}
    try{TerminalMaterials.Apply(codexPrefab,id=>PrefabManager.Instance.GetPrefab(id));}catch(Exception e){Error("Native codex item materials failed; bundle materials retained",e);}
+   try{TerminalMaterials.Apply(builderCodexPrefab,id=>PrefabManager.Instance.GetPrefab(id));}catch(Exception e){Error("Native builder codex materials failed; bundle materials retained",e);}
    try{GatewayMaterials.Apply(gatewayPrefab,id=>PrefabManager.Instance.GetPrefab(id));}catch(Exception e){Error("Native gateway materials failed; bundle materials retained",e);}
    // Vanilla references become available here, before a world/placement ghost is created.
    // The registered prefab keeps its identity, so previously saved cores inherit this too.

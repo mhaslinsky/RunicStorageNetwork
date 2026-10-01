@@ -1,7 +1,8 @@
 param(
  [string]$UnityEditor,
  [string]$UnityProject,
- [string]$Output
+ [string]$Output,
+ [ValidateSet('gateway','builder-codex')][string]$Asset='gateway'
 )
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
@@ -9,7 +10,7 @@ $root=Split-Path $PSScriptRoot -Parent
 $paths=Import-PowerShellDataFile (Join-Path $root '.local/BuildPaths.psd1')
 if(!$UnityEditor){$UnityEditor=Join-Path (Split-Path $paths.EditorData -Parent) 'Unity.exe'}
 if(!$UnityProject){$UnityProject=Join-Path $root 'UnityBuild'}
-if(!$Output){$Output=Join-Path $root ('artifacts/gateway-'+(Get-Date -Format 'yyyyMMdd-HHmmss'))}
+if(!$Output){$Output=Join-Path $root ('artifacts/'+$Asset+'-'+(Get-Date -Format 'yyyyMMdd-HHmmss'))}
 $UnityProject=[IO.Path]::GetFullPath($UnityProject)
 $Output=[IO.Path]::GetFullPath($Output)
 $gameAssets=Join-Path $UnityProject 'Assets/RunicStorageGame'
@@ -27,24 +28,34 @@ New-Item -ItemType Directory -Force $Output,(Join-Path $Output 'assets'),(Join-P
 & (Join-Path $PSScriptRoot 'Compile.ps1') -Output (Join-Path $Output 'bin')
 & (Join-Path $PSScriptRoot 'Compile.ps1') -Tests -Output (Join-Path $Output 'tests') *> (Join-Path $Output 'tests.log')
 if(Test-Path -LiteralPath (Join-Path $PSScriptRoot 'VerifyApi.ps1')){& (Join-Path $PSScriptRoot 'VerifyApi.ps1') -Output $Output *> (Join-Path $Output 'api-check.log')}
-foreach($name in @('GatewayAssetBuilder.cs','GatewayStoneFinish.cs','BuildGatewayAssets.cs','BuildIcons.cs')){
+foreach($name in @('GatewayAssetBuilder.cs','GatewayStoneFinish.cs','BuildGatewayAssets.cs','BuildIcons.cs','BuildBuilderCodexAssets.cs','PreviewBuilderCodex.cs')){
  Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $editorAssets $name) -Force
 }
 Copy-Item -LiteralPath (Join-Path $root 'src/GatewayMaterials.cs') -Destination (Join-Path $editorAssets 'GatewayMaterials.cs') -Force
+Copy-Item -LiteralPath (Join-Path $root 'src/TerminalMaterials.cs') -Destination (Join-Path $editorAssets 'TerminalMaterials.cs') -Force
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'PreviewTerminal.cs') -Destination (Join-Path $editorAssets 'TerminalPreview.cs') -Force
+New-Item -ItemType Directory -Force (Join-Path $gameAssets 'BuilderCodex/Source') | Out-Null
+foreach($name in @('RunicBuilderCodex.fbx','materials.json')){
+ $file=Join-Path $root ('model-sources/builder-codex/'+$name)
+ $before[$file]=(Get-FileHash -LiteralPath $file).Hash
+ Copy-Item -LiteralPath $file -Destination (Join-Path $gameAssets ('BuilderCodex/Source/'+$name)) -Force
+}
 foreach($name in @('RunicGateway.fbx','materials.json','RG_Core_EmissionMask_128.png')){
  Copy-Item -LiteralPath (Join-Path $source $name) -Destination (Join-Path $gameAssets ('Gateway/Source/'+$name)) -Force
 }
 $unityLog=Join-Path $Output 'UnityEditor.log'
 $assets=Join-Path $Output 'assets'
-$arguments=@('-batchmode','-projectPath',('"'+$UnityProject+'"'),'-executeMethod','RunicStorage.Build.BuildAssets.GatewayBatch','-rsnOutput',('"'+$assets+'"'),'-logFile',('"'+$unityLog+'"'))
+$method=if($Asset -eq 'builder-codex'){'BuilderCodexBatch'}else{'GatewayBatch'}
+$success=if($Asset -eq 'builder-codex'){'RSN_BUILDER_CODEX_BUILD_SUCCESS'}else{'RSN_GATEWAY_BUILD_SUCCESS'}
+$arguments=@('-batchmode','-projectPath',('"'+$UnityProject+'"'),'-executeMethod',('RunicStorage.Build.BuildAssets.'+$method),'-rsnOutput',('"'+$assets+'"'),'-logFile',('"'+$unityLog+'"'))
 $editor=Start-Process -FilePath $UnityEditor -ArgumentList $arguments -WindowStyle Hidden -PassThru
 $editor.WaitForExit();$editor.Refresh()
-if($editor.ExitCode -ne 0 -or !(Select-String -LiteralPath $unityLog -SimpleMatch 'RSN_GATEWAY_BUILD_SUCCESS' -Quiet)){throw "Gateway Editor build failed: $unityLog"}
+if($editor.ExitCode -ne 0 -or !(Select-String -LiteralPath $unityLog -SimpleMatch $success -Quiet)){throw "$Asset Editor build failed: $unityLog"}
 foreach($file in $before.Keys){if((Get-FileHash -LiteralPath $file).Hash -ne $before[$file]){throw "Source snapshot changed: $file"}}
 $version=(Get-Content -LiteralPath (Join-Path $root 'manifest.json') -Raw | ConvertFrom-Json).version_number
 $dist=Join-Path $root 'dist';New-Item -ItemType Directory -Force $dist | Out-Null
-$package=Join-Path $dist "RunicStorageNetwork-$version-gateway-preview.zip"
-$candidate=Join-Path $Output "RunicStorageNetwork-$version-gateway-preview.zip"
+$package=Join-Path $dist "RunicStorageNetwork-$version-$Asset-preview.zip"
+$candidate=Join-Path $Output "RunicStorageNetwork-$version-$Asset-preview.zip"
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $zip=[IO.Compression.ZipFile]::Open($candidate,[IO.Compression.ZipArchiveMode]::Create)
 try {

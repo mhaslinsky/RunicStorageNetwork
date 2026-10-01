@@ -1,0 +1,202 @@
+{
+  "materials": [
+    {
+      "name": "RBC_Leather_Material",
+      "objects": [
+        "RBC_Leather"
+      ],
+      "base_color": [
+        0.008999999612569809,
+        0.007499999832361937,
+        0.007000000216066837,
+        1.0
+      ],
+      "metallic": 0.0,
+      "roughness": 0.8700000047683716,
+      "emission_color": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emission_strength": 0.0,
+      "backface_culling": false
+    },
+    {
+      "name": "RBC_Parchment_Material",
+      "objects": [
+        "RBC_Parchment"
+      ],
+      "base_color": [
+        0.5199999809265137,
+        0.4300000071525574,
+        0.30000001192092896,
+        1.0
+      ],
+      "metallic": 0.0,
+      "roughness": 0.8999999761581421,
+      "emission_color": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emission_strength": 0.0,
+      "backface_culling": false
+    },
+    {
+      "name": "RBC_Silver_Material",
+      "objects": [
+        "RBC_Silver"
+      ],
+      "base_color": [
+        0.7799999713897705,
+        0.800000011920929,
+        0.8199999928474426,
+        1.0
+      ],
+      "metallic": 1.0,
+      "roughness": 0.3199999928474426,
+      "emission_color": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emission_strength": 0.0,
+      "backface_culling": false
+    },
+    {
+      "name": "RBC_ClaspLeather_Material",
+      "objects": [
+        "RBC_ClaspLeather"
+      ],
+      "base_color": [
+        0.008999999612569809,
+        0.007499999832361937,
+        0.007000000216066837,
+        1.0
+      ],
+      "metallic": 0.0,
+      "roughness": 0.8700000047683716,
+      "emission_color": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emission_strength": 0.0,
+      "backface_culling": false
+    },
+    {
+      "name": "RBC_Crystal_Material",
+      "objects": [
+        "RBC_Crystal"
+      ],
+      "base_color": [
+        0.017999999225139618,
+        0.25,
+        0.17000000178813934,
+        1.0
+      ],
+      "metallic": 0.05000000074505806,
+      "roughness": 0.2800000011920929,
+      "emission_color": [
+        0.02500000037252903,
+        0.75,
+        0.46000000834465027,
+        1.0
+      ],
+      "emission_strength": 0.550000011920929,
+      "backface_culling": false
+    },
+    {
+      "name": "RBC_RunesPrimary_Material",
+      "objects": [
+        "RBC_RunesPrimary"
+      ],
+      "base_color": [
+        0.017999999225139618,
+        0.1599999964237213,
+        0.4399999976158142,
+        1.0
+      ],
+      "metallic": 0.0,
+      "roughness": 0.75,
+      "emission_color": [
+        0.02500000037252903,
+        0.3199999928474426,
+        1.0,
+        1.0
+      ],
+      "emission_strength": 1.149999976158142,
+      "backface_culling": false
+    },
+    {
+      "name": "RBC_Cloth_Material",
+      "objects": [
+        "RBC_Cloth"
+      ],
+      "base_color": [
+        0.017999999225139618,
+        0.03500000014901161,
+        0.04500000178813934,
+        1.0
+      ],
+      "metallic": 0.0,
+      "roughness": 0.9599999785423279,
+      "emission_color": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emission_strength": 0.0,
+      "backface_culling": false
+    },
+    {
+      "name": "RBC_RunesSecondary_Material",
+      "objects": [
+        "RBC_RunesSecondary"
+      ],
+      "base_color": [
+        0.017999999225139618,
+        0.1599999964237213,
+        0.4399999976158142,
+        1.0
+      ],
+      "metallic": 0.0,
+      "roughness": 0.75,
+      "emission_color": [
+        0.02500000037252903,
+        0.3199999928474426,
+        1.0,
+        1.0
+      ],
+      "emission_strength": 0.3499999940395355,
+      "backface_culling": false
+    },
+    {
+      "name": "RBC_HarnessLeather_Material",
+      "objects": [
+        "RBC_HarnessLeather"
+      ],
+      "base_color": [
+        0.023000000044703484,
+        0.013000000268220901,
+        0.00800000037997961,
+        1.0
+      ],
+      "metallic": 0.0,
+      "roughness": 0.8700000047683716,
+      "emission_color": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emission_strength": 0.0,
+      "backface_culling": false
+    }
+  ]
+}

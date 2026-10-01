@@ -2,6 +2,7 @@
 
 ## 0.9.0
 
+- Added the Runic Builder's Codex, a book worn on the belt. Available for preview with a spawn command; crafting and special abilities will follow.
 - Added the Runic Gateway: name a pair of gateways to connect distant parts of the same storage network. Requires experimental distant storage.
 - Craft, build and retrieve items through gateways using the normal relay ranges. Only items allowed through ordinary portals can cross a gateway; local materials and ordinary relay routes remain available.
 - Gateways show their connection state and dim when disconnected. Conflicting link names cannot combine separate networks.

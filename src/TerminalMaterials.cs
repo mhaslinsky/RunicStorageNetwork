@@ -10,11 +10,14 @@ namespace RunicStorageNetwork {
   // The inventory book shares the stand's palette without renaming either model's slots.
   static string StyleSlot(string slot){
    switch(slot){
+    case "RBC_Leather":
+    case "RBC_ClaspLeather":
+    case "RBC_HarnessLeather":
     case "RC_Leather":return "RST_Leather";
     case "RC_ClaspLeather":return "RST_Leather";
-    case "RC_Silver":return "RST_Silver";
-    case "RC_Parchment":return "RST_Parchment";
-    case "RC_Cloth":return "RST_Cloth";
+    case "RBC_Silver":case "RC_Silver":return "RST_Silver";
+    case "RBC_Parchment":case "RC_Parchment":return "RST_Parchment";
+    case "RBC_Cloth":case "RC_Cloth":return "RST_Cloth";
     default:return slot;
    }
   }
@@ -59,7 +62,8 @@ namespace RunicStorageNetwork {
        // Dark brown leather keeps the cover and spine distinct from silver trim.
        // Use albedo for the leather tone; _Color also serves placement/support tint.
        var albedo=new Texture2D(1,1,TextureFormat.RGBA32,false,true){name=Prefix+slot+"_Albedo"};textures.Add(albedo);
-       albedo.SetPixel(0,0,slot=="RC_ClaspLeather"?new Color(.065f,.032f,.014f,1):new Color(.014f,.008f,.004f,1));albedo.Apply(false,true);mat.SetTexture("_MainTex",albedo);
+       bool clasp=slot=="RC_ClaspLeather"||slot=="RBC_ClaspLeather";
+       albedo.SetPixel(0,0,clasp?new Color(.065f,.032f,.014f,1):slot=="RBC_HarnessLeather"?new Color(.035f,.019f,.009f,1):new Color(.014f,.008f,.004f,1));albedo.Apply(false,true);mat.SetTexture("_MainTex",albedo);
        mat.SetColor("_Color",Color.white);
        mat.SetFloat("_Metallic",0);mat.SetFloat("_Glossiness",.1f);
       }
@@ -77,7 +81,7 @@ namespace RunicStorageNetwork {
      Destroy(renderer.sharedMaterial);
     }
   }
-  static bool OwnsPreview(UnityEngine.Object asset){return asset.name.StartsWith(Prefix+"RST_",StringComparison.Ordinal)||asset.name.StartsWith(Prefix+"RC_",StringComparison.Ordinal);}
+  static bool OwnsPreview(UnityEngine.Object asset){return asset.name.StartsWith(Prefix+"RST_",StringComparison.Ordinal)||asset.name.StartsWith(Prefix+"RC_",StringComparison.Ordinal)||asset.name.StartsWith(Prefix+"RBC_",StringComparison.Ordinal);}
   static void Destroy(UnityEngine.Object asset){if(Application.isPlaying)UnityEngine.Object.Destroy(asset);else UnityEngine.Object.DestroyImmediate(asset);}
  }
 }

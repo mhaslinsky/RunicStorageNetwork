@@ -1,0 +1,68 @@
+{
+  "source": "RunicBuilderCodex/model_v01/RunicBuilderCodex_v01.blend",
+  "source_sha256": "63b17578e8e62eb092ea87e277f0a412c749fa1591bfc3254c015aa7c304bf0b",
+  "fbx_sha256": "5c286fe91a81c1bbc00f052ef702bf72536fbc9d13b4f0c0ce6a1d28cc7d0d01",
+  "triangles": 1389,
+  "renderers": 9,
+  "source_unchanged": true,
+  "bounds_blender": [
+    [
+      -0.1253499984741211,
+      -0.11650007218122482,
+      -0.460999995470047
+    ],
+    [
+      0.12800000607967377,
+      0.024000005796551704,
+      0.03600001707673073
+    ]
+  ],
+  "pivot": "Belt attachment at world origin in the approved Preview scene; Blender +Z up, front -Y",
+  "roundtrip": {
+    "RBC_ClaspLeather": {
+      "position_error": 5.3726900748371916e-08,
+      "normal_error": 8.635262951481029e-07,
+      "triangles": 36
+    },
+    "RBC_Cloth": {
+      "position_error": 7.450580596923828e-08,
+      "normal_error": 6.873733645550053e-05,
+      "triangles": 5
+    },
+    "RBC_Crystal": {
+      "position_error": 5.3726900748371916e-08,
+      "normal_error": 1.5851361926760912e-06,
+      "triangles": 8
+    },
+    "RBC_HarnessLeather": {
+      "position_error": 4.0978193283081055e-08,
+      "normal_error": 5.820383403814196e-05,
+      "triangles": 252
+    },
+    "RBC_Leather": {
+      "position_error": 7.337970883992392e-08,
+      "normal_error": 2.7278227016616194e-05,
+      "triangles": 164
+    },
+    "RBC_Parchment": {
+      "position_error": 7.078051567077637e-08,
+      "normal_error": 0.00014007140981302802,
+      "triangles": 212
+    },
+    "RBC_RunesPrimary": {
+      "position_error": 6.664001874625056e-08,
+      "normal_error": 5.800075040139747e-06,
+      "triangles": 56
+    },
+    "RBC_RunesSecondary": {
+      "position_error": 6.664001874625056e-08,
+      "normal_error": 8.903246415680472e-06,
+      "triangles": 44
+    },
+    "RBC_Silver": {
+      "position_error": 7.337970883992392e-08,
+      "normal_error": 4.05335067962041e-05,
+      "triangles": 612
+    }
+  }
+}

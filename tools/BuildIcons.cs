@@ -30,7 +30,7 @@ public static partial class BuildAssets {
   if(model.name.StartsWith("RSN_RunicGateway",StringComparison.Ordinal)){
    RunicStorageNetwork.GatewayMaterials.Apply(model,id=>iconDonors.LoadAsset<GameObject>((id=="YggdrasilWood"?"Assets/GameElements/Items/materials/":"Assets/GameElements/Pieces/")+id+".prefab"));return;
   }
-  if(model.name.StartsWith("RSN_RunicStorageTerminal",StringComparison.Ordinal)||model.name.StartsWith("RSN_RunicCodex",StringComparison.Ordinal)){
+  if(model.name.StartsWith("RSN_RunicStorageTerminal",StringComparison.Ordinal)||model.name.StartsWith("RSN_RunicCodex",StringComparison.Ordinal)||model.name.StartsWith("RSN_RunicBuilderCodex",StringComparison.Ordinal)){
    RunicStorageNetwork.TerminalMaterials.Apply(model,id=>iconDonors.LoadAsset<GameObject>("Assets/GameElements/Pieces/"+id+".prefab"));
    return;
   }
