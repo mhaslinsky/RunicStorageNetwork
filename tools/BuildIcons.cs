@@ -27,6 +27,9 @@ public static partial class BuildAssets {
   Texture.streamingTextureForceLoadAll=true;
   if(!iconDonors) iconDonors=AssetBundle.LoadFromFile(@"E:\Steam\steamapps\common\Valheim\valheim_Data\StreamingAssets\SoftRef\Bundles\c4210710");
   Check(iconDonors,"Native icon material bundle unavailable");
+  if(model.name.StartsWith("RSN_RunicGateway",StringComparison.Ordinal)){
+   RunicStorageNetwork.GatewayMaterials.Apply(model,id=>iconDonors.LoadAsset<GameObject>((id=="YggdrasilWood"?"Assets/GameElements/Items/materials/":"Assets/GameElements/Pieces/")+id+".prefab"));return;
+  }
   if(model.name.StartsWith("RSN_RunicStorageTerminal",StringComparison.Ordinal)||model.name.StartsWith("RSN_RunicCodex",StringComparison.Ordinal)){
    RunicStorageNetwork.TerminalMaterials.Apply(model,id=>iconDonors.LoadAsset<GameObject>("Assets/GameElements/Pieces/"+id+".prefab"));
    return;
@@ -63,6 +66,7 @@ public static partial class BuildAssets {
   }
  }
  static void ReleaseIconMaterials(GameObject model) {
+  RunicStorageNetwork.GatewayMaterials.ReleasePreview(model);
   RunicStorageNetwork.TerminalMaterials.ReleasePreview(model);
   foreach(var r in model.GetComponentsInChildren<MeshRenderer>())if(r.sharedMaterial&&r.sharedMaterial.name.StartsWith("IconOnly_"))UnityEngine.Object.DestroyImmediate(r.sharedMaterial);
  }

@@ -35,7 +35,7 @@ namespace RunicStorageNetwork {
    }
    foreach(var s in sources){if(s.Denied){avoid.Add(R.Key(s.Data.m_uid));return ApiStatus.SourcesUnavailable;}if(!s.Ready)return ApiStatus.Updating;}
    // Replan with the exact owner-confirmed inventories, without trusting a count from the UI.
-   plan=Planner.Plan(needs,sources.SelectMany(s=>s.Stock),true);
+   plan=Planner.Plan(needs,sources.SelectMany(s=>GatewayRuntime.Filter(view.Graph,view.Network,s.Data.GetPosition(),consumer.GetPosition(),s.Stock)),true);
    return plan==null?ApiStatus.InsufficientResources:ApiStatus.Ready;
   }
   public void Repair(){
@@ -46,6 +46,7 @@ namespace RunicStorageNetwork {
    if(ApiWorld.Context(context,ZNet.GetUID(),true,out var consumer,out var who)!=ApiStatus.Ready||who!=creator||!UnloadedNetworks.Ward(consumer.GetPosition(),creator))throw new InvalidOperationException("Consumer access changed");
    foreach(var s in sources){
     Check(s,true);if(!ApiWorld.Eligible(s.Data,creator)||!view.Graph.Covers(entry.Network,Topology.Position(s.Data.GetPosition()),n=>true))throw new InvalidOperationException("Source access changed");
+    if(plan.Where(d=>d.Source==R.Key(s.Data.m_uid)).Any(d=>!view.Graph.CanTransfer(entry.Network,Topology.Position(s.Data.GetPosition()),Topology.Position(consumer.GetPosition()),GatewayRuntime.Teleportable(d.Item))))throw new InvalidOperationException("Gateway path changed");
     s.Delta=new InventoryDelta(s.Container.GetInventory(),plan.Where(d=>d.Source==R.Key(s.Data.m_uid)),true);
    }
    captured=true;
@@ -57,7 +58,10 @@ namespace RunicStorageNetwork {
   }
   public bool ApplyNext(){
    if(!captured)throw new InvalidOperationException("Missing capture");if(apply>=sources.Count)return true;
+   if(!ApiRuntime.Enabled||view.Structure!=UnloadedNetworks.CatalogRevision)throw new InvalidOperationException("Network changed before debit");
    var s=sources[apply];Check(s,true);
+   var consumer=RemoteContext.Data(context.ConsumerId);
+   if(consumer==null||plan.Where(d=>d.Source==R.Key(s.Data.m_uid)).Any(d=>!view.Graph.CanTransfer(entry.Network,Topology.Position(s.Data.GetPosition()),Topology.Position(consumer.GetPosition()),GatewayRuntime.Teleportable(d.Item))))throw new InvalidOperationException("Gateway path changed before debit");
    // Mark entry before mutation: a Save/other-mod exception must roll this delta back too.
    s.Applied=true;Transport.InternalMutation++;
    try{s.Delta.Apply();R.Call(s.Container,"Save");s.Expected=(byte[])(s.Data.GetByteArray(ZDOVars.s_items)??Array.Empty<byte>()).Clone();apply++;}

@@ -32,7 +32,7 @@ namespace RunicStorageNetwork {
   internal void Invalidate(){cached.Clear();}
   internal List<Stock> Stock(long player){
    if(cached.TryGetValue(player,out var hit)&&Time.unscaledTime<hit.Until)return hit.Items;
-   var result=new List<Stock>();foreach(var c in Pool)if(Access.Container(c,player,this,out _,preview:true))result.AddRange(Stockroom.Preview(c));
+   var result=new List<Stock>();foreach(var c in Pool)if(Access.Container(c,player,this,out _,preview:true))result.AddRange(GatewayRuntime.Local(this,player,c,Stockroom.Preview(c)));
    cached[player]=new Cached{Until=Time.unscaledTime+0.25f,Items=result};return result;
   }
   internal void Detach(){Live.Remove(this);Pool.Clear();foreach(var inv in subscribed)inv.m_onChanged-=Invalidate;subscribed.Clear();cached.Clear();}

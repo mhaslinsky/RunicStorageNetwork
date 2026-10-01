@@ -35,7 +35,7 @@ namespace RunicStorageNetwork {
    // Station carries the access-point identity for withdrawals; Core still identifies storage.
    var op=new Operation{Id=Guid.NewGuid().ToString("N"),Target=Prefix+item,Quality=quality,Multiplier=amount,Actor=p.GetZDOID(),Station=access.Id,Core=core.Id,Network=core.GetComponent<NetworkMember>().SavedNetwork,Peer=ZNet.GetUID(),PlayerId=p.GetPlayerID()};
    if(!op.Validate(out _,out _,out _))return false;
-   var plan=Planner.Plan(op.Needs,StorageIndex.Query(core,p.GetPlayerID(),op.Needs),true);
+   var plan=Planner.Plan(op.Needs,StorageIndex.Query(core,p.GetPlayerID(),op.Needs,access.transform.position),true);
    if(plan==null){StorageIndex.Reconcile(core);return false;}
    var proposal=new Actions.Pending{Op=op,Player=p};if(!Actions.Propose(proposal,plan))return false;
    op.PlayerStock.Clear(); // Withdrawals never pay from the character's own inventory.
@@ -82,6 +82,7 @@ namespace RunicStorageNetwork {
      if(current.Cancelled||!NetworkTerminal.Showing(current.AccessPoint,current.Core)||!current.Op.Validate(out _,out _,out reason))throw new InvalidOperationException(reason);
      var plan=Wire.Debits(p);
      if(plan.Count==0||plan.Any(d=>!current.Op.Sources.Contains(d.Source)||d.Item!=current.Op.Needs[0].Item||d.Quality!=current.Op.Quality)||plan.Sum(d=>(long)d.Amount)!=current.Op.Multiplier)throw new InvalidOperationException("invalid terminal plan");
+     if(!GatewayRuntime.ValidatePlan(current.Op,plan))throw new InvalidOperationException("gateway path changed before withdrawal");
      var items=Unpack(p,plan);current.Delivery=new TerminalDelivery(current.Player.GetInventory());current.Delivery.Apply(items);success=true;
     }
    }catch(Exception e){

@@ -80,3 +80,15 @@
 *.pdb
 *.log
 .env*
+
+!/tools/BuildGatewayAssets.cs
+!/tools/GatewayAssetBuilder.cs
+!/tools/GatewayStoneFinish.cs
+!/tools/BuildGatewayPreview.ps1
+!/model-sources/gateway/
+/model-sources/gateway/*
+!/model-sources/gateway/*.fbx
+!/model-sources/gateway/*.json
+!/model-sources/gateway/*.png
+!/model-sources/gateway/README.md
+!/GATEWAY_IMPLEMENTATION_RU.md

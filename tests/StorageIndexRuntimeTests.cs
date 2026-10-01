@@ -6,6 +6,7 @@ using System.Linq;
 using RunicStorageNetwork;
 using RunicStorageNetwork.Logic;
 namespace UnityEngine {
+ public struct Vector3 {}
  public class Object {public bool Destroyed;public static implicit operator bool(Object o)=>o!=null&&!o.Destroyed;}
  public class Transform {public object position;}
  public static class Time {public static float unscaledTime;}
@@ -18,6 +19,7 @@ class Inventory {public Action m_onChanged;public List<Stock> Items=new List<Sto
 class Container:UnityEngine.Object {public Inventory Inventory=new Inventory();public ZNetView View;public UnityEngine.Transform transform=new UnityEngine.Transform();public Inventory GetInventory()=>Inventory;public bool IsInUse()=>false;}
 class ZNetScene {public static ZNetScene instance=new ZNetScene();public bool IsAreaReady(object point)=>true;}
 namespace RunicStorageNetwork {
+ static class GatewayRuntime {internal static IEnumerable<Stock> Local(Core core,long actor,Container c,IEnumerable<Stock> stock,UnityEngine.Vector3? point=null)=>stock;}
  class Core:UnityEngine.Object {internal List<Container> Pool=new List<Container>();}
  static class R {internal static ZNetView View(Container c)=>c?.View;internal static bool Valid(ZNetView v)=>v?.Zdo!=null;internal static string Key(ZDOID id)=>id.Value.ToString();internal static object Call(Container c,string method)=>null;}
  static class Access {internal static bool Container(Container c,long player,Core core,out string reason,bool ownLease){reason=null;return c&&core.Pool.Contains(c);}}

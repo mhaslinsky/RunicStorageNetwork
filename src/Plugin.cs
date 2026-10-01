@@ -12,7 +12,7 @@ using Jotunn.Utils;
 using UnityEngine;
 
 namespace RunicStorageNetwork {
- [BepInPlugin(Guid, "Runic Storage Network", "0.8.8")]
+ [BepInPlugin(Guid, "Runic Storage Network", "0.9.0")]
  [BepInDependency("com.jotunn.jotunn", "2.30.2")]
  [BepInDependency("com.maxsch.valheim.MultiUserChest",BepInDependency.DependencyFlags.SoftDependency)]
  [NetworkCompatibility(CompatibilityLevel.EveryoneMustHaveMod,VersionStrictness.Patch)]
@@ -24,7 +24,7 @@ namespace RunicStorageNetwork {
   internal static ConfigEntry<string> AllowedContainers,DeniedContainers,DeniedComponents;
   internal static ConfigEntry<string> AllowedBuildTools,DeniedBuildTools,DeniedPieceComponents;
   internal static bool Healthy=true;
-  Harmony harmony; AssetBundle bundle; GameObject corePrefab,relayPrefab,terminalPrefab,codexPrefab;
+  Harmony harmony; AssetBundle bundle; GameObject corePrefab,relayPrefab,terminalPrefab,codexPrefab,gatewayPrefab;
   internal static bool Enabled=>Healthy&&Supply.Value;
   internal new static void Info(string text)=>Log.LogInfo("[RSN] "+text);
   internal static void Debug(string text){if(DebugLogging.Value)Info(text);}
@@ -54,7 +54,7 @@ namespace RunicStorageNetwork {
    foreach(var entry in new[]{AllowedBuildTools,DeniedBuildTools,DeniedPieceComponents})entry.SettingChanged+=BuildToolsChanged;
    DebugLogging=Config.Bind("Diagnostics","DebugLogging",false,"Detailed transaction diagnostics without inventory dumps.");
    Supply.SettingChanged+=SettingsChanged;StorageRadius.SettingChanged+=SettingsChanged;SupplyRadius.SettingChanged+=SettingsChanged;Rescan.SettingChanged+=SettingsChanged;
-   Info("0.8.8; Valheim="+global::Version.CurrentVersion+" Unity="+Application.unityVersion+" BepInEx="+typeof(BaseUnityPlugin).Assembly.GetName().Version+" Jotunn="+typeof(PieceManager).Assembly.GetName().Version);
+   Info("0.9.0; Valheim="+global::Version.CurrentVersion+" Unity="+Application.unityVersion+" BepInEx="+typeof(BaseUnityPlugin).Assembly.GetName().Version+" Jotunn="+typeof(PieceManager).Assembly.GetName().Version);
    RsnLocalization.Add();
    try {
     string path=Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),"Assets","rsn_core_windows");
@@ -77,6 +77,7 @@ namespace RunicStorageNetwork {
     RegisterRelay();
     codexPrefab=RunicCodexItem.Register(bundle);
     terminalPrefab=TerminalPiece.Register(bundle);
+    gatewayPrefab=Gateway.Register(bundle);
     PrefabManager.OnVanillaPrefabsAvailable+=CheckIds;
     harmony=new Harmony(Guid);Patches.Install(harmony);
     if(ExperimentalUnloadedNetworks.Value)UnloadedNetworks.Install();
@@ -110,11 +111,12 @@ namespace RunicStorageNetwork {
   ConfigEntry<string> Names(string name,string value,string description)=>Config.Bind("Containers",name,value,new ConfigDescription(description,null,new ConfigurationManagerAttributes{IsAdminOnly=true}));
   ConfigEntry<string> Tools(string name,string value,string description)=>Config.Bind("Building",name,value,new ConfigDescription(description,null,new ConfigurationManagerAttributes{IsAdminOnly=true}));
   void CheckIds(){
-   foreach(string id in new[]{"Stone","FineWood","Chain","Iron","SurtlingCore","GreydwarfEye","Silver","Crystal","LinenThread","LeatherScraps","JuteRed","forge","piece_workbench","Hammer"})if(!PrefabManager.Instance.GetPrefab(id)){Disable("Missing prefab "+id);Log.LogError("[RSN] Required prefab ID unresolved: "+id);}
+   foreach(string id in new[]{"Stone","FineWood","Chain","Iron","SurtlingCore","GreydwarfEye","Silver","Crystal","YggdrasilWood","Eitr","LinenThread","LeatherScraps","JuteRed","forge","piece_workbench","Hammer"})if(!PrefabManager.Instance.GetPrefab(id)){Disable("Missing prefab "+id);Log.LogError("[RSN] Required prefab ID unresolved: "+id);}
    try{CoreMaterials.Apply(corePrefab);}catch(Exception e){Error("Native core materials failed; bundle materials retained",e);}
    try{CoreMaterials.Apply(relayPrefab,true);}catch(Exception e){Error("Native relay materials failed; bundle materials retained",e);}
    try{TerminalMaterials.Apply(terminalPrefab,id=>PrefabManager.Instance.GetPrefab(id));}catch(Exception e){Error("Native terminal materials failed; bundle materials retained",e);}
    try{TerminalMaterials.Apply(codexPrefab,id=>PrefabManager.Instance.GetPrefab(id));}catch(Exception e){Error("Native codex item materials failed; bundle materials retained",e);}
+   try{GatewayMaterials.Apply(gatewayPrefab,id=>PrefabManager.Instance.GetPrefab(id));}catch(Exception e){Error("Native gateway materials failed; bundle materials retained",e);}
    // Vanilla references become available here, before a world/placement ghost is created.
    // The registered prefab keeps its identity, so previously saved cores inherit this too.
    try {
@@ -130,6 +132,8 @@ namespace RunicStorageNetwork {
     var relayWear=relayPrefab.GetComponent<WearNTear>();relayWear.m_destroyedEffect=CopyEffects(wear.m_destroyedEffect);relayWear.m_hitEffect=CopyEffects(wear.m_hitEffect);
     terminalPrefab.GetComponent<Piece>().m_placeEffect=CopyEffects(piece.m_placeEffect);
     var terminalWear=terminalPrefab.GetComponent<WearNTear>();terminalWear.m_destroyedEffect=CopyEffects(wear.m_destroyedEffect);terminalWear.m_hitEffect=CopyEffects(wear.m_hitEffect);
+    gatewayPrefab.GetComponent<Piece>().m_placeEffect=CopyEffects(piece.m_placeEffect);
+    var gatewayWear=gatewayPrefab.GetComponent<WearNTear>();gatewayWear.m_destroyedEffect=CopyEffects(wear.m_destroyedEffect);gatewayWear.m_hitEffect=CopyEffects(wear.m_hitEffect);
     Info("Relay effects from stone_floor: place="+EffectNames(place)+"; destroy="+EffectNames(destroyed));
     Info("Core effects from stone_floor: place="+EffectNames(place)+"; destroy="+EffectNames(destroyed)+"; hit="+EffectNames(hit));
     Info("Game color space="+QualitySettings.activeColorSpace+"; see Core material entries for native material bindings");

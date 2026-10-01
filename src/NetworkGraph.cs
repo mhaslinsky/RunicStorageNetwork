@@ -10,12 +10,14 @@ namespace RunicStorageNetwork.Logic {
  }
  public sealed class NetworkNode {
   public string Id,Network;
+  public bool Gateway;
+  public string Tag="",Binding="";
   public Point Position;
   public bool Root,Confirmed,ChoiceRequired;
   public double Storage,Supply;
  }
  // Immutable per-revision view. Only confirmed, placed nodes are fed to the graph.
- public sealed class NetworkGraph {
+ public sealed partial class NetworkGraph {
   public readonly Dictionary<string,NetworkNode> Nodes;
   public readonly Dictionary<string,List<string>> Neighbors=new Dictionary<string,List<string>>(StringComparer.Ordinal);
   public readonly Dictionary<string,int> Hops=new Dictionary<string,int>(StringComparer.Ordinal);
@@ -24,13 +26,13 @@ namespace RunicStorageNetwork.Logic {
   readonly double range;
   readonly Dictionary<(int,int,int),List<NetworkNode>> cells=new Dictionary<(int,int,int),List<NetworkNode>>();
   (int,int,int) Cell(Point p)=>((int)Math.Floor(p.X/range),(int)Math.Floor(p.Y/range),(int)Math.Floor(p.Z/range));
-  public NetworkGraph(IEnumerable<NetworkNode> input,double linkRange,bool multipleRoots=false){
+  public NetworkGraph(IEnumerable<NetworkNode> input,double linkRange,bool multipleRoots=false,Dictionary<string,List<string>> edges=null){
    if(linkRange<=0||double.IsNaN(linkRange))throw new ArgumentOutOfRangeException(nameof(linkRange));range=linkRange;
    Nodes=input.GroupBy(n=>n.Id,StringComparer.Ordinal).ToDictionary(g=>g.Key,g=>g.Single(),StringComparer.Ordinal);
    foreach(var n in Nodes.Values.Where(n=>n.Confirmed).OrderBy(n=>n.Id,StringComparer.Ordinal)){
     var key=Cell(n.Position);if(!cells.TryGetValue(key,out var list))cells[key]=list=new List<NetworkNode>();list.Add(n);
    }
-   foreach(var n in Nodes.Values){Neighbors[n.Id]=Near(n.Position).Where(o=>o.Id!=n.Id&&n.Confirmed&&n.Network!=""&&o.Network==n.Network).Select(o=>o.Id).OrderBy(id=>id,StringComparer.Ordinal).ToList();}
+   foreach(var n in Nodes.Values){Neighbors[n.Id]=edges!=null?edges[n.Id]:Near(n.Position).Where(o=>o.Id!=n.Id&&n.Confirmed&&n.Network!=""&&o.Network==n.Network).Select(o=>o.Id).OrderBy(id=>id,StringComparer.Ordinal).ToList();}
    foreach(var g in Nodes.Values.Where(n=>n.Root&&n.Confirmed&&!string.IsNullOrEmpty(n.Network)).GroupBy(n=>n.Network,StringComparer.Ordinal)){
     // Conflicting roots are not a valid network, even if supplied by corrupt persisted data.
     if(!multipleRoots&&g.Count()!=1)continue;var root=g.OrderBy(n=>n.Id,StringComparer.Ordinal).First();Roots[root.Network]=root.Id;var queue=new Queue<string>();foreach(var source in g){Hops[source.Id]=0;queue.Enqueue(source.Id);}
@@ -38,7 +40,8 @@ namespace RunicStorageNetwork.Logic {
    }
   }
   public static NetworkGraph Automatic(IEnumerable<NetworkNode> input,double linkRange){
-   var nodes=input.Select(n=>new NetworkNode{Id=n.Id,Network=n.Network,Root=n.Root,Confirmed=n.Confirmed&&(!n.Root||!string.IsNullOrEmpty(n.Network)),Position=n.Position,Storage=n.Storage,Supply=n.Supply}).ToArray();
+   var source=input.ToArray();if(source.Any(n=>n.Gateway))return WithGateways(source,linkRange);
+   var nodes=source.Select(n=>new NetworkNode{Id=n.Id,Network=n.Network,Root=n.Root,Confirmed=n.Confirmed&&(!n.Root||!string.IsNullOrEmpty(n.Network)),Position=n.Position,Storage=n.Storage,Supply=n.Supply}).ToArray();
    // Use spatial buckets for adjacency even on unbound relays. Components are
    // derived, not persisted: removing a bridge splits them automatically.
    var spatial=new NetworkGraph(nodes.Select(n=>new NetworkNode{Id=n.Id,Network="",Confirmed=n.Confirmed,Position=n.Position}),linkRange);

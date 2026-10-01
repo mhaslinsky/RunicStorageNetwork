@@ -43,7 +43,7 @@ namespace RunicStorageNetwork {
    Plugin.Info("Patch OK: "+type.Name+"."+target);
   }
   static void TextPromptBefore(TextInput __instance){NetworkRenameStyle.Reset(__instance);}
-  static void TextPromptAfter(TextInput __instance,TextReceiver __0){if(__0 is NetworkName)NetworkRenameStyle.Apply(__instance);}
+  static void TextPromptAfter(TextInput __instance,TextReceiver __0){if(__0 is NetworkName||__0 is Gateway)NetworkRenameStyle.Apply(__instance);}
   static void ContainerInfo(Container __instance,ref string __result){
    string text=ContainerHover.Text(__instance);if(text.Length>0)__result+="\n"+text;
   }

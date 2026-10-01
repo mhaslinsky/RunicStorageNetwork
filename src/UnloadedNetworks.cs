@@ -17,7 +17,7 @@ namespace RunicStorageNetwork {
  }
  internal static partial class UnloadedNetworks {
   static readonly HashSet<int> chestTypes=new HashSet<int>();
-  static readonly HashSet<int> nodeTypes=new HashSet<int>(new[]{"RSN_NetworkCore","RSN_RunicRelay"}.Select(s=>s.GetStableHashCode()));
+  static readonly HashSet<int> nodeTypes=new HashSet<int>(new[]{"RSN_NetworkCore","RSN_RunicRelay","RSN_RunicGateway"}.Select(s=>s.GetStableHashCode()));
   static readonly Dictionary<ZDOID,ZDO> nodes=new Dictionary<ZDOID,ZDO>();
   static readonly Dictionary<ZDOID,ZDO> chests=new Dictionary<ZDOID,ZDO>();
   static readonly Dictionary<ZDOID,ZDO> wards=new Dictionary<ZDOID,ZDO>();
@@ -110,7 +110,7 @@ namespace RunicStorageNetwork {
    if(z==null||!z.IsValid())return;int prefab=z.GetPrefab();
    if(nodeTypes.Contains(prefab)){
     long creator=z.GetLong(ZDOVars.s_creator,0);int schema=z.GetInt(NetworkMember.SchemaKey,0);if(creator==0||schema!=1)return;
-    var stamp=(z.GetPosition(),z.GetString(NetworkMember.NetworkKey,""),creator,schema);
+    var stamp=(z.GetPosition(),z.GetString(NetworkMember.NetworkKey,"")+"\n"+z.GetString("rsn_gateway_tag","")+"\n"+z.GetString("rsn_gateway_network",""),creator,schema);
     if(nodeState.TryGetValue(z.m_uid,out var old)&&old.Equals(stamp))return;
     nodeState[z.m_uid]=stamp;nodes[z.m_uid]=z;UpdateReplica(z);structure++;if(Demand)Enqueue(z.m_uid);Topology.Dirty();
    }
@@ -268,10 +268,14 @@ namespace RunicStorageNetwork {
   }
   internal static void Forget(ZDOID id){if(!Authority)Destroyed(id);}
   internal static List<ZDOID> Export(Core core,long actor){
-   var result=new HashSet<ZDOID>();if(!Authority||!core)return result.ToList();
-   var graph=Topology.ForActor(actor);var member=core.GetComponent<NetworkMember>();
-   if(!graph.Nodes.TryGetValue(member.Id,out var root))return result.ToList();var network=root.Network;
-   foreach(var node in graph.Nodes.Values.Where(n=>n.Network==network&&graph.Hops.ContainsKey(n.Id))){
+   var result=new HashSet<ZDOID>();if(!Authority)return result.ToList();
+   // Topology-only records make pairing deterministic on clients too: a third
+   // same-tag gateway or an independent nearby core must not disappear merely
+   // because it isn't part of the currently usable inventory pool.
+   if(nodes.Values.Any(z=>z.GetPrefab()=="RSN_RunicGateway".GetStableHashCode()))foreach(var z in nodes.Values)if(z.IsValid())result.Add(z.m_uid);
+   var graph=Topology.ForActor(actor);var member=core?core.GetComponent<NetworkMember>():null;
+   var network=member&&graph.Nodes.TryGetValue(member.Id,out var root)?root.Network:null;
+   foreach(var node in graph.Nodes.Values.Where(n=>network!=null&&n.Network==network&&graph.Hops.ContainsKey(n.Id))){
     var nodeMember=Topology.Member(node.Id);if(nodeMember)result.Add(nodeMember.View.GetZDO().m_uid);
     var center=ZoneSystem.GetZone(new Vector3((float)node.Position.X,(float)node.Position.Y,(float)node.Position.Z));int radius=Mathf.CeilToInt((float)node.Storage/64)+1;
     for(int x=-radius;x<=radius;x++)for(int y=-radius;y<=radius;y++)if(chestSectors.TryGetValue(new Vector2s(center.x+x,center.y+y),out var ids))foreach(var id in ids){

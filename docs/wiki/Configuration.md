@@ -1,6 +1,6 @@
 # Configuration
 
-For Runic Storage Network **0.8.8**. [Русская версия](https://github.com/rerit33/RunicStorageNetwork/wiki/Configuration-RU).
+For Runic Storage Network **0.9.0**. [Русская версия](https://github.com/rerit33/RunicStorageNetwork/wiki/Configuration-RU).
 
 The configuration file is `BepInEx/config/local.runicstoragenetwork.cfg`. It is created after the mod first starts. With a mod manager, use the file inside the profile you actually play with.
 
@@ -17,7 +17,7 @@ The configuration file is `BepInEx/config/local.runicstoragenetwork.cfg`. It is 
 ExperimentalUnloadedNetworks = false
 ```
 
-Set `ExperimentalUnloadedNetworks = true` to allow connected networks and eligible storage outside a player's loaded area. This also enables the [API for other mods](https://github.com/rerit33/RunicStorageNetwork/wiki/API).
+Set `ExperimentalUnloadedNetworks = true` to allow connected networks and eligible storage outside a player's loaded area. This also enables Runic Gateway links and the [API for other mods](https://github.com/rerit33/RunicStorageNetwork/wiki/API). Gateways use the relay's local storage, supply and connection ranges; only their paired distant link ignores distance. When disabled, placed gateways remain visible but do not supply resources or act as relays.
 
 For multiplayer, install the same RSN version on the host or dedicated server and every client, then enable the option in **each** installation. Fully restart the game clients and host/server after changing it. To disable it, set `false` everywhere and restart. If the server has it disabled, clients use ordinary loaded-area networking and the experimental API is unavailable.
 

@@ -13,6 +13,16 @@ namespace RunicStorageNetwork {
    Add("name","Storage Network Core","Ядро сети хранилищ");
    Add("description","Connects nearby chests and supplies crafting, item upgrades and building with stored resources.","Объединяет ближайшие сундуки и снабжает крафт, улучшение предметов и строительство хранящимися ресурсами.");
    Add("relay_name","Runic Relay","Рунное реле");
+   Add("gateway_name","Runic Gateway","Рунический мост");
+   Add("gateway_description","Bridges distant sections of one storage network. Only resources allowed through ordinary portals may cross. Requires experimental unloaded networks.","Соединяет удалённые участки одной сети хранилищ. Через мост проходят только ресурсы, разрешённые для обычных порталов. Требует экспериментальной функции непрогруженных сетей.");
+   Add("gateway_link","Link: {0}","Связь: {0}");
+   Add("gateway_edit","Set link name","Задать имя связи");
+   Add("gateway_tag_input","Gateway link name","Имя связи моста");
+   Add("gateway_no_tag","Set a link name","Задайте имя связи");
+   Add("gateway_no_pair","No linked gateway","Нет парного моста");
+   Add("gateway_ambiguous","More than two gateways use this name","Это имя используют больше двух мостов");
+   Add("gateway_conflict","Linked to a different network","Привязан к другой сети");
+   Add("gateway_experimental","Enable experimental unloaded networks to use this bridge","Для работы моста включите экспериментальные непрогруженные сети");
    Add("codex_name","Storage Codex","Кодекс запасов");
    Add("codex_description","Search connected storage and retrieve items. Place within a core's or connected relay's supply range.","Позволяет искать и забирать предметы из подключённых хранилищ. Разместите в зоне снабжения ядра или подключённого реле.");
    Add("runic_codex_name","Runic Codex","Рунный кодекс");

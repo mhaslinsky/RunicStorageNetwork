@@ -141,6 +141,7 @@ namespace RunicStorageNetwork {
    try {
     if(!Intent(pending,out string intent))throw new InvalidOperationException(intent);
     if(!pending.Op.Validate(out _,out var core,out string why))throw new InvalidOperationException(why);
+    if(!GatewayRuntime.ValidatePlan(pending.Op,plan))throw new InvalidOperationException("gateway path changed before result");
     // Recheck every planned physical source immediately before producing the result.
     // The receiving client may have unloaded a branch since the coordinator's check.
     core.Scan();

@@ -46,6 +46,7 @@ class Player:UnityEngine.Object {public static Player m_localPlayer;public Inven
 class ZNet {public static long GetUID()=>3;}
 class ZNetScene:UnityEngine.Object {public static ZNetScene instance=new ZNetScene();public Dictionary<string,UnityEngine.GameObject> Prefabs=new Dictionary<string,UnityEngine.GameObject>();public UnityEngine.GameObject GetPrefab(string name)=>Prefabs.TryGetValue(name,out var p)?p:null;}
 namespace RunicStorageNetwork {
+ static class GatewayRuntime {internal static bool ValidatePlan(Operation op,IEnumerable<Debit> plan)=>true;}
  static class Plugin {internal static bool Enabled=true;internal static void Debug(string t){}internal static void Error(string t,Exception e){}internal static void Critical(string id,string reason){}}
  class Core:UnityEngine.Object {internal bool Valid=true;internal ZDOID Id=new ZDOID{Id=2};internal UnityEngine.Transform transform=new UnityEngine.Transform();internal T GetComponent<T>() where T:class=>new NetworkMember() as T;}
  class StorageCodex:UnityEngine.Object {internal bool Valid=true;internal ZDOID Id=new ZDOID{Id=4};internal UnityEngine.Transform transform=new UnityEngine.Transform();internal static StorageCodex Live;internal static StorageCodex Find(ZDOID id)=>Live!=null&&Live.Valid&&Live.Id==id?Live:null;}
@@ -70,7 +71,7 @@ namespace RunicStorageNetwork {
  static class Actions {internal class Pending {internal Operation Op;internal Player Player;}internal static Pending Waiting;internal static bool Propose(Pending p,List<Debit> d){p.Op.Sources=d.Select(x=>x.Source).Distinct().ToArray();return true;}}
  static class CraftPreparation {internal static bool HasReservation;}
  static class NetworkTerminal {internal static bool Visible=true;internal static StorageCodex ShownAt;internal static bool Showing(StorageCodex access,Core core)=>Visible&&ShownAt==access;internal static void TransferStatus(string key,params object[] args){}}
- static class StorageIndex {internal static List<Stock> Counts=new List<Stock>();internal static List<Stock> Query(Core c,long player,IEnumerable<Need> needs)=>Counts;internal static void Reconcile(Core c){}}
+ static class StorageIndex {internal static List<Stock> Counts=new List<Stock>();internal static List<Stock> Query(Core c,long player,IEnumerable<Need> needs,UnityEngine.Vector3? point=null)=>Counts;internal static void Reconcile(Core c){}}
  class InventoryDelta {internal class Part {internal ItemDrop.ItemData Item;internal int Amount;}internal List<Part> Parts=new List<Part>();}
  static class Wire {internal static void Debits(ZPackage p,List<Debit> ds){p.Write(ds.Count);foreach(var d in ds){p.Write(d.Source);p.Write(d.Item);p.Write(d.Quality);p.Write(d.Amount);}}internal static List<Debit> Debits(ZPackage p){int count=p.ReadInt();var ds=new List<Debit>();for(int i=0;i<count;i++)ds.Add(new Debit(p.ReadString(),p.ReadString(),p.ReadInt(),p.ReadInt()));return ds;}}
  class Transport {

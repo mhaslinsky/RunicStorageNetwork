@@ -16,6 +16,7 @@ namespace RunicStorageNetwork {
   internal ZDO Root;
   readonly List<NetworkNode> nodes=new List<NetworkNode>();
   bool repaired;
+  Vector3 consumer;
   string Network=>Graph.Nodes.TryGetValue(R.Key(op.Core),out var root)?root.Network:"";
   static ZNetScene catalogScene;
   static float wardRange,extensionRange;
@@ -93,8 +94,9 @@ namespace RunicStorageNetwork {
    if(!rootPrefab||!rootPrefab.GetComponent<Core>()||Root.GetLong(ZDOVars.s_creator,0)==0||Root.GetInt(NetworkMember.SchemaKey,0)!=1||!NetworkGraph.MatchesRoot(Root.GetString(NetworkMember.NetworkKey,""),op.Network)){
     Plugin.Debug(op.Id+" root mismatch current="+R.Key(op.Core)+" saved="+(Root?.GetString(NetworkMember.NetworkKey,"")??"missing")+" requested="+op.Network);return false;
    }
-   foreach(var id in op.Nodes.Concat(new[]{op.Core}).Distinct())AddNode(Data(id));
-   Graph=NetworkGraph.Automatic(nodes,Plugin.RelayLink.Value);
+   consumer=point;
+   if(UnloadedNetworks.Enabled)Graph=GatewayRuntime.Graph(op.PlayerId);
+   else {foreach(var id in op.Nodes.Concat(new[]{op.Core}).Distinct())AddNode(Data(id));Graph=NetworkGraph.Automatic(nodes,Plugin.RelayLink.Value);}
    if(!Connected(point)){RepairGraph();if(!Connected(point)){Plugin.Debug(op.Id+" coverage mismatch nodes="+nodes.Count+" point="+point);return false;}}
    if(!op.Withdrawal)op.Needs=Stockroom.Requirements(req,op.Quality,op.Multiplier);reason="invalid requirements";
    if(op.Needs.Count==0||op.Needs.Count>32||op.Needs.Any(n=>n.Amount>100000))return false;
@@ -114,6 +116,7 @@ namespace RunicStorageNetwork {
    nodes.Add(new NetworkNode{Id=R.Key(z.m_uid),Network=z.GetString(NetworkMember.NetworkKey,""),Root=root,Confirmed=Ward(z.GetPosition()),Position=Topology.Position(z.GetPosition()),Storage=root?Plugin.StorageRadius.Value:Plugin.RelayStorage.Value,Supply=root?Plugin.SupplyRadius.Value:Plugin.RelaySupply.Value});
   }
   void RepairGraph(){
+   if(UnloadedNetworks.Enabled){Graph=GatewayRuntime.Graph(op.PlayerId);return;}
    if(repaired)return;repaired=true;
    var seen=new HashSet<string>(nodes.Select(n=>n.Id));var scheduled=new HashSet<ZDOID>{Root.m_uid};var queue=new Queue<ZDO>();queue.Enqueue(Root);
    while(queue.Count>0){
@@ -151,6 +154,11 @@ namespace RunicStorageNetwork {
    // Privacy, wagon and root-override are prefab facts already settled by ContainerPolicy.
    reason="network path/storage coverage unavailable";if(!Graph.Covers(Network,Topology.Position(z.GetPosition()),n=>true)){RepairGraph();if(!Graph.Covers(Network,Topology.Position(z.GetPosition()),n=>true))return false;}
    reason="access denied";if(!Ward(z.GetPosition()))return false;reason="available";return true;
+  }
+  internal IEnumerable<Stock> Filter(ZDO source,IEnumerable<Stock> stock)=>UnloadedNetworks.Enabled?GatewayRuntime.Filter(Graph,Network,source.GetPosition(),consumer,stock):stock;
+  internal bool Allows(Debit debit){
+   if(!UnloadedNetworks.Enabled||debit.Source=="player")return true;
+   var source=Source(debit.Source);return source!=null&&Graph.CanTransfer(Network,Topology.Position(source.GetPosition()),Topology.Position(consumer),GatewayRuntime.Teleportable(debit.Item));
   }
   internal bool OwnerSource(Container c,out string reason,bool ownLease=false){
    reason="unloaded";var v=R.View(c);if(!c||!R.Valid(v)||!v.IsOwner()||!UnloadedNetworks.CanOwn(c))return false;

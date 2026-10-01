@@ -25,7 +25,7 @@ namespace RunicStorageNetwork {
     if(Root)z.Set(NetworkKey,NetworkGraph.PersistentIdentity(z.GetString(NetworkKey,"")));
     z.Set(SchemaKey,1);Topology.Dirty();Plugin.Debug("node schema=1 NodeId="+Id+" NetworkId="+Network);
    }
-   string current=SavedNetwork+":"+z.GetInt(SchemaKey,0);
+   string current=SavedNetwork+":"+z.GetInt(SchemaKey,0);if(GatewayRuntime.Is(z))current+=":"+z.GetString(Gateway.TagKey,"")+":"+z.GetString(Gateway.BindingKey,"");
    if(current!=observed){observed=current;Topology.Dirty();Plugin.Debug("node identity NodeId="+Id+" NetworkId="+Network);}
   }
   internal void LogState(string next){if(next==state)return;Plugin.Debug("node state NodeId="+Id+" NetworkId="+Network+" "+state+" -> "+next);state=next;}
@@ -58,7 +58,7 @@ namespace RunicStorageNetwork {
    }
    if(stamp==accessRevision)return;accessRevision=stamp;unchecked{DisplayRevision++;}selections.Clear();actorGraphs.Clear();foreach(var core in Core.Live)if(core)core.Invalidate();
   }
-  internal static void Clear(){Members.Clear();DestroyedRoots.Clear();byId.Clear();pools.Clear();containerNetworks.Clear();labelRoots.Clear();selections.Clear();actorGraphs.Clear();Graph=new NetworkGraph(new NetworkNode[0],50);next=0;dirty=true;HoverInfo.Clear();ContainerHover.Clear();}
+  internal static void Clear(){GatewayRuntime.Clear();Members.Clear();DestroyedRoots.Clear();byId.Clear();pools.Clear();containerNetworks.Clear();labelRoots.Clear();selections.Clear();actorGraphs.Clear();Graph=new NetworkGraph(new NetworkNode[0],50);next=0;dirty=true;HoverInfo.Clear();ContainerHover.Clear();}
   internal static NetworkMember Member(string id)=>byId.TryGetValue(id,out var n)&&n&&n.Valid?n:null;
   internal static ZDOID[] OperationNodes(string network){
    if(!UnloadedNetworks.Enabled)return Members.Where(m=>m&&m.Valid&&m.Network==network).Select(m=>m.View.GetZDO().m_uid).Distinct().ToArray();
@@ -74,13 +74,13 @@ namespace RunicStorageNetwork {
    if(!force&&!dirty&&(UnloadedNetworks.Enabled||Time.unscaledTime<next))return;refreshing=true;
    try {
     dirty=false;next=Time.unscaledTime+Plugin.Rescan.Value;byId.Clear();selections.Clear();actorGraphs.Clear();
-    foreach(var member in Members.Where(m=>m&&m.Valid).OrderBy(m=>m.Id,StringComparer.Ordinal))byId[member.Id]=member;
+    foreach(var member in Members.Where(m=>m&&m.Valid&&(UnloadedNetworks.Enabled||!GatewayRuntime.Is(m.View.GetZDO()))).OrderBy(m=>m.Id,StringComparer.Ordinal))byId[member.Id]=member;
     if(UnloadedNetworks.Enabled)foreach(var member in UnloadedNetworks.Members)byId[member.Id]=member;
-    Graph=NetworkGraph.Automatic(byId.Values.Select(m=>new NetworkNode{Id=m.Id,Network=m.SavedNetwork,Root=m.Root,Position=Position(m.transform.position),
+    Graph=UnloadedNetworks.Enabled?GatewayRuntime.Graph(0):NetworkGraph.Automatic(byId.Values.Select(m=>new NetworkNode{Id=m.Id,Network=m.SavedNetwork,Root=m.Root,Position=Position(m.transform.position),
      Confirmed=m.View.GetZDO().GetInt(NetworkMember.SchemaKey,0)==1&&(UnloadedNetworks.IsReplica(m)||ZNetScene.instance.IsAreaReady(m.transform.position)),Storage=m.Root?Plugin.StorageRadius.Value:Plugin.RelayStorage.Value,Supply=m.Root?Plugin.SupplyRadius.Value:Plugin.RelaySupply.Value}),Plugin.RelayLink.Value);
     pools.Clear();containerNetworks.Clear();labelRoots.Clear();
     // Persistent core identities keep the displayed name stable across world reloads.
-    foreach(var root in Graph.Nodes.Values.Where(n=>n.Root&&Graph.Hops.ContainsKey(n.Id)).OrderBy(n=>Member(n.Id).SavedNetwork,StringComparer.Ordinal).ThenBy(n=>n.Id,StringComparer.Ordinal))
+    foreach(var root in Graph.Nodes.Values.Where(n=>n.Root&&Graph.Hops.ContainsKey(n.Id)&&Member(n.Id)).OrderBy(n=>Member(n.Id).SavedNetwork,StringComparer.Ordinal).ThenBy(n=>n.Id,StringComparer.Ordinal))
      if(!labelRoots.ContainsKey(root.Network))labelRoots[root.Network]=Member(root.Id).GetComponent<Core>();
     // One pass through loaded pieces, then spatial buckets shared by every node.
     float cellSize=Mathf.Max(Plugin.StorageRadius.Value,Plugin.RelayStorage.Value);
@@ -99,7 +99,7 @@ namespace RunicStorageNetwork {
     }
     foreach(var node in Graph.Nodes.Values.Where(n=>Graph.Hops.ContainsKey(n.Id))){
      if(!pools.TryGetValue(node.Network,out var pool))pools[node.Network]=pool=new List<Container>();
-     var at=cell(Member(node.Id).transform.position);
+     var at=cell(new Vector3((float)node.Position.X,(float)node.Position.Y,(float)node.Position.Z));
      for(int x=-1;x<=1;x++)for(int y=-1;y<=1;y++)for(int z=-1;z<=1;z++)if(chests.TryGetValue((at.Item1+x,at.Item2+y,at.Item3+z),out var bucket))
       foreach(var c in bucket)if(node.Position.Distance2(Position(c.transform.position))<=node.Storage*node.Storage)pool.Add(c);
     }
@@ -119,6 +119,7 @@ namespace RunicStorageNetwork {
    var graph=ForActor(actor);string net=graph.Choose(Position(point),n=>true);var core=net!=null&&graph.Roots.TryGetValue(net,out var root)?Member(root)?.GetComponent<Core>():null;selections[actor]=new Selection{Point=point,Until=Time.unscaledTime+.25f,Core=core};UnloadedNetworks.Request(core);return core;
   }
   internal static NetworkGraph ForActor(long actor){
+   if(UnloadedNetworks.Enabled)return GatewayRuntime.Graph(actor);
    if(!actorGraphs.TryGetValue(actor,out var graph))actorGraphs[actor]=graph=NetworkGraph.Automatic(Graph.Nodes.Values.Select(n=>new NetworkNode{Id=n.Id,Network=Member(n.Id)?.SavedNetwork??"",Root=n.Root,Confirmed=n.Confirmed&&Allowed(n,actor),Position=n.Position,Storage=n.Storage,Supply=n.Supply}),Plugin.RelayLink.Value);
    return graph;
   }

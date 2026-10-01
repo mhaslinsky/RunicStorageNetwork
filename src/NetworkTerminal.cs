@@ -133,7 +133,7 @@ namespace RunicStorageNetwork {
   void Refresh(){
    if(!core||!player)return;
    string name=NetworkName.For(core.GetComponent<NetworkMember>());heading.text=name.Length>0?name:T("terminal_title");
-   entries=StorageIndex.Browse(core,player.GetPlayerID()).GroupBy(s=>(s.Item,s.Quality)).Select(g=>{
+   entries=StorageIndex.Browse(core,player.GetPlayerID(),accessPoint.transform.position).GroupBy(s=>(s.Item,s.Quality)).Select(g=>{
     var prefab=ZNetScene.instance.GetPrefab(g.Key.Item);var item=prefab?prefab.GetComponent<ItemDrop>():null;
     return item?new Entry{Id=g.Key.Item,Quality=g.Key.Quality,Count=(int)Math.Min(int.MaxValue,g.Sum(s=>(long)s.Amount)),Item=item,Name=Localization.instance.Localize(item.m_itemData.m_shared.m_name)}:null;
    }).Where(e=>e!=null&&e.Count>0).OrderBy(e=>e.Name,StringComparer.CurrentCultureIgnoreCase).ThenBy(e=>e.Quality).ThenBy(e=>e.Id,StringComparer.Ordinal).ToList();

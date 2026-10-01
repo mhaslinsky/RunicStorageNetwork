@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.0
+
+- Added the Runic Gateway: name a pair of gateways to connect distant parts of the same storage network. Requires experimental distant storage.
+- Craft, build and retrieve items through gateways using the normal relay ranges. Only items allowed through ordinary portals can cross a gateway; local materials and ordinary relay routes remain available.
+- Gateways show their connection state and dim when disconnected. Conflicting link names cannot combine separate networks.
+
 ## 0.8.8
 
 - Added an experimental API for other mods to read network resources and consume materials for their machines. Requires experimental distant storage to be enabled.

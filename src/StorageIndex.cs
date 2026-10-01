@@ -59,17 +59,17 @@ namespace RunicStorageNetwork {
    }finally{e.Reading=false;}
   }
   internal static bool Ready(Core core)=>core&&core.Pool.All(c=>c&&entries.TryGetValue(R.Key(R.View(c).GetZDO().m_uid),out var e)&&e.Loaded);
-  internal static List<Stock> Query(Core core,long player,IEnumerable<Need> needs){
+  internal static List<Stock> Query(Core core,long player,IEnumerable<Need> needs,Vector3? point=null){
    var result=new List<Stock>();if(!core)return result;
    foreach(var group in catalog.Find(needs.Select(n=>n.Item)).GroupBy(s=>s.Source))
-    if(entries.TryGetValue(group.Key,out var e)&&Access.Container(e.Container,player,core,out _,ownLease:true))result.AddRange(group);
+    if(entries.TryGetValue(group.Key,out var e)&&Access.Container(e.Container,player,core,out _,ownLease:true))result.AddRange(GatewayRuntime.Local(core,player,e.Container,group,point));
    return result;
   }
-  internal static List<Stock> Browse(Core core,long player){
+  internal static List<Stock> Browse(Core core,long player,Vector3? point=null){
    var result=new List<Stock>();if(!core)return result;
    foreach(var c in core.Pool){
     if(!c||!R.Valid(R.View(c))||!Access.Container(c,player,core,out _,ownLease:true))continue;
-    result.AddRange(catalog.Source(R.Key(R.View(c).GetZDO().m_uid)));
+    result.AddRange(GatewayRuntime.Local(core,player,c,catalog.Source(R.Key(R.View(c).GetZDO().m_uid)),point));
    }
    return result;
   }

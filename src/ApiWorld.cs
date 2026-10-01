@@ -84,7 +84,7 @@ namespace RunicStorageNetwork {
   internal readonly Dictionary<string,List<Stock>> Sources=new Dictionary<string,List<Stock>>();
   internal readonly Dictionary<ResourceKey,long> Amounts=new Dictionary<ResourceKey,long>();
   internal IReadOnlyList<ResourceAmount> Resources=Array.AsReadOnly(Array.Empty<ResourceAmount>());
-  IEnumerator<int> scan;readonly List<NetworkNode> nodes=new List<NetworkNode>();int contentHash;long indexRevision;
+  IEnumerator<int> scan;int contentHash;long indexRevision;
   readonly ResourceCatalog index=new ResourceCatalog();
   internal void Repair(){scan?.Dispose();scan=null;Scanning=false;Structure=-1;NextScan=0;UnloadedNetworks.ApiRefreshAccess();foreach(var key in Sources.Keys){var z=RemoteContext.Source(key);if(z!=null)ApiWorld.Invalidate(z.m_uid);}}
   internal void Tick(double now){
@@ -97,18 +97,17 @@ namespace RunicStorageNetwork {
   IEnumerable<int> Scan(double now){
    long version=UnloadedNetworks.CatalogRevision;
    if(Graph==null||Structure!=version){
-    nodes.Clear();
-    foreach(var z in UnloadedNetworks.ApiNodes){
-     bool root=z.GetPrefab()=="RSN_NetworkCore".GetStableHashCode();
-     nodes.Add(new NetworkNode{Id=R.Key(z.m_uid),Network=z.GetString(NetworkMember.NetworkKey,""),Root=root,Confirmed=z.GetInt(NetworkMember.SchemaKey,0)==1&&UnloadedNetworks.Ward(z.GetPosition(),Creator),Position=Topology.Position(z.GetPosition()),Storage=root?Plugin.StorageRadius.Value:Plugin.RelayStorage.Value,Supply=root?Plugin.SupplyRadius.Value:Plugin.RelaySupply.Value});yield return 0;
-    }
-    Graph=NetworkGraph.Automatic(nodes,Plugin.RelayLink.Value);Network=Graph.Choose(Point,n=>true);Structure=version;yield return 0;
+    Graph=GatewayRuntime.Graph(Creator);Network=Graph.Choose(Point,n=>true);Structure=UnloadedNetworks.CatalogRevision;yield return 0;
    }
    var next=new Dictionary<string,List<Stock>>(StringComparer.Ordinal);int unknown=0,bytes=0;Limited=false;
    foreach(var z in UnloadedNetworks.ApiCandidates(Graph,Network)){
     if(Structure!=UnloadedNetworks.CatalogRevision){Complete=false;yield break;}
     if(ApiWorld.Eligible(z,Creator)&&Graph.Covers(Network,Topology.Position(z.GetPosition()),n=>true)){
-     var stocks=ApiWorld.Read(z,now);if(stocks==null)unknown++;else {bytes+=64+stocks.Sum(s=>192+s.Item.Length*4);if(bytes>1024*1024||!ApiRuntime.AllowViewBytes(this,bytes)){Limited=true;Complete=false;Sources.Clear();index.Clear();Amounts.Clear();Resources=Array.AsReadOnly(Array.Empty<ResourceAmount>());Bytes=0;ObservedAt=now;yield break;}next[R.Key(z.m_uid)]=stocks;}
+     var stocks=ApiWorld.Read(z,now);if(stocks==null)unknown++;else {
+      var filtered=GatewayRuntime.Filter(Graph,Network,z.GetPosition(),new Vector3((float)Point.X,(float)Point.Y,(float)Point.Z),stocks);
+      if(!ReferenceEquals(filtered,stocks))stocks=filtered.ToList();
+      bytes+=64+stocks.Sum(s=>192+s.Item.Length*4);if(bytes>1024*1024||!ApiRuntime.AllowViewBytes(this,bytes)){Limited=true;Complete=false;Sources.Clear();index.Clear();Amounts.Clear();Resources=Array.AsReadOnly(Array.Empty<ResourceAmount>());Bytes=0;ObservedAt=now;yield break;}next[R.Key(z.m_uid)]=stocks;
+     }
     }yield return 0;
    }
    foreach(var key in Sources.Keys.Where(k=>!next.ContainsKey(k)).ToArray())index.Remove(key);

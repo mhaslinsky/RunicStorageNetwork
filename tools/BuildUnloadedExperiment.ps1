@@ -2,6 +2,7 @@ param([string]$BasePackage)
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 $root=Split-Path $PSScriptRoot -Parent
+if([IO.File]::ReadAllText((Join-Path $root 'src/Plugin.cs')).Contains('Gateway.Register')){throw 'This source needs the new Gateway asset bundle. Use tools/BuildGatewayPreview.ps1; the old 0.8.1 bundle is incompatible.'}
 $version=(Get-Content -LiteralPath (Join-Path $root 'manifest.json') -Raw | ConvertFrom-Json).version_number
 if($version -notmatch '^\d+\.\d+\.\d+$'){throw 'Invalid experimental package version'}
 if(!$BasePackage){$BasePackage=Join-Path $root 'dist/RunicStorageNetwork-0.8.1.zip'}

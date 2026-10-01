@@ -68,7 +68,7 @@ namespace RunicStorageNetwork {
    UnloadedNetworks.Import(z.m_uid);TryReady(z.m_uid);
   }
   static void Snapshot(Watch w,Core core){
-   var ids=core?UnloadedNetworks.Export(core,w.Player):new List<ZDOID>();
+   var ids=UnloadedNetworks.Export(core,w.Player);
    if(ids.Count>MaxRecords)throw new InvalidOperationException("Experimental network exceeds discovery protocol capacity");
    w.Revision=UnloadedNetworks.CatalogRevision;w.Generation=++serial;w.Pages.Clear();w.Ids.Clear();w.Send.Clear();w.Queued.Clear();
    var records=new List<Record>();

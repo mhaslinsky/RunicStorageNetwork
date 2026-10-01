@@ -1,8 +1,8 @@
 # Runic Storage Network
 
-> **Experimental:** Access to unloaded networks and the mod API is optional, disabled by default, and may cause errors.
+> **Experimental:** Unloaded networks, Runic Gateways and the mod API require the optional distant-storage feature, disabled by default, and may cause errors.
 >
-> **Экспериментально:** Доступ к выгруженным сетям и API мода включается отдельно, по умолчанию выключен и может вызывать ошибки.
+> **Экспериментально:** Выгруженные сети, рунические мосты и API требуют включения экспериментальной функции удалённых хранилищ. Она по умолчанию выключена и может вызывать ошибки.
 
 [English](#english) | [Русский](#русский)
 
@@ -34,7 +34,15 @@ Relays can form chains and branches. They need an uninterrupted connection to th
 
 A book on a stone pedestal that opens network storage. Place it within the supply range of a core or connected relay. It gives access to that network without extending its coverage. Hover over it to see whether it is connected.
 
-All three structures are built with the regular hammer near a workbench and require no fuel.
+#### Runic Gateway
+
+Bridges distant sections of the same network. Enable experimental distant storage, build the first gateway near your core or connected relay, and give it a link name. Give a second gateway the same name to extend that network to a distant outpost. Relays, chests, crafting stations and the Storage Codex work around each gateway within normal relay ranges.
+
+Exactly two gateways may share a link name. A third disables that pair until the names are corrected. Gateways keep their network binding and cannot join two independent networks; dismantle and rebuild a gateway to bind it to another core.
+
+Only items allowed through ordinary portals can cross the distant link, including the world's portal setting. Local materials stay usable: iron stored at an outpost can be used there, but iron at the main base cannot cross the gateway under normal portal rules. An ordinary relay path between the two sides also allows those materials. Gateways do not teleport players.
+
+All four structures are built with the regular hammer near a workbench and require no fuel.
 
 #### Runic Codex
 
@@ -68,6 +76,8 @@ By default, chests connect within **20 m** of a node. Crafting stations and buil
 **Runic Codex — forge level 1:** Silver ×4, Crystal ×2, Greydwarf Eye ×6, Linen Thread ×4, Leather Scraps ×4. Produces one book. The recipe uses normal ingredient discovery.
 
 **Storage Codex — hammer, near a workbench:** Runic Codex ×1, Fine Wood ×10, Stone ×8, Iron ×2, Red Jute ×2. Dismantling returns the materials, including the book.
+
+**Runic Gateway — hammer, near a workbench:** Stone ×20, Yggdrasil Wood ×10, Silver ×6, Crystal ×10, Refined Eitr ×5. Unlocks through normal ingredient discovery. Requires experimental distant storage to function.
 
 ### Installation and compatibility
 
@@ -123,7 +133,15 @@ Runic Storage Network объединяет сундуки базы в сеть �
 
 Книга на каменном постаменте, открывающая хранилище сети. Разместите её в зоне снабжения ядра или подключённого реле. Она даёт доступ к этой сети, не расширяя покрытие. При наведении показывается состояние подключения.
 
-Все три постройки устанавливаются обычным молотом рядом с верстаком и не требуют топлива.
+#### Рунический мост — Runic Gateway
+
+Соединяет удалённые участки одной сети. Включите экспериментальную функцию удалённых хранилищ, поставьте первый мост рядом с ядром или подключённым реле и задайте ему имя связи. Такое же имя у второго моста продолжит сеть на удалённой базе. Реле, сундуки, станки и Кодекс запасов работают вокруг моста в обычных радиусах реле.
+
+Одно имя могут использовать ровно два моста. Третий отключает эту пару, пока имена не будут исправлены. Мосты сохраняют привязку к своей сети и не объединяют две независимые сети. Чтобы привязать мост к другому ядру, разберите и постройте его заново.
+
+Через дальнюю связь проходят только предметы, разрешённые для обычных порталов, с учётом настройки мира. Местные материалы остаются доступны: железо на удалённой базе можно использовать там же, но железо основной базы при обычных правилах порталов через мост не пройдёт. Если стороны также соединены обычной цепочкой реле, эти материалы доступны по ней. Мосты не телепортируют игроков.
+
+Все четыре постройки устанавливаются обычным молотом рядом с верстаком и не требуют топлива.
 
 #### Рунный кодекс
 
@@ -157,6 +175,8 @@ Runic Storage Network объединяет сундуки базы в сеть �
 **Рунный кодекс — кузница первого уровня:** серебро ×4, кристалл ×2, глаз грейдворфа ×6, льняная нить ×4, обрывки кожи ×4. Получается одна книга. Рецепт открывается по обычным правилам знакомства с ингредиентами.
 
 **Кодекс запасов — молоток, рядом с верстаком:** Рунный кодекс ×1, качественная древесина ×10, камень ×8, железо ×2, красный джут ×2. При разборке материалы возвращаются, включая книгу.
+
+**Рунический мост — молоток, рядом с верстаком:** камень ×20, древесина Иггдрасиля ×10, серебро ×6, кристалл ×10, очищенный эйтр ×5. Открывается по получению ингредиентов. Для работы нужна экспериментальная функция удалённых хранилищ.
 
 ### Установка и совместимость
 

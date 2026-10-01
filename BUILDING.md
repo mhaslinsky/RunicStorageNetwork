@@ -4,6 +4,14 @@ This repository contains the mod's C# source, isolated logic tests and DLL compi
 
 `tools/BuildIcons.cs` and `tools/IconSilhouette.shader` preserve the approved icon-rendering recipe used by the separate Unity asset pipeline. They are Editor sources, not plugin sources or a standalone asset build; they require the author's asset project and local game materials. The mod icon uses the same render as the core's build-menu icon.
 
+## Runic Gateway local package
+
+Gateway source snapshots and its approved ordinary-stone finish are in `model-sources/gateway`, `tools/GatewayAssetBuilder.cs`, `tools/GatewayStoneFinish.cs` and `src/GatewayMaterials.cs`. The new DLL requires the new bundle; the old 0.8.1 bundle does not contain the gateway.
+
+For the author's prepared, separate `UnityBuild` project (with the existing core, relay and codex assets and Editor helpers), run `tools/BuildGatewayPreview.ps1`. It compiles the plugin, runs the isolated tests, rebuilds the complete bundle in Unity 6000.0.75f1 without Play Mode, validates the gateway model/placement, and writes a six-file local test ZIP in `dist`. It does not install or publish anything. A plain source checkout alone cannot reconstruct the other authoring assets. The older asset-reuse scripts refuse to package this source with the obsolete bundle.
+
+Gateway tests cover pairing, independent networks, cycles, local versus distant resources, alternate ordinary routes and cached topology invalidation. Runtime fixtures use game stand-ins and do not establish in-game multiplayer correctness. See `GATEWAY_IMPLEMENTATION_RU.md` for the manual test checklist.
+
 ## Requirements
 
 - Windows and PowerShell 5.1 or newer.

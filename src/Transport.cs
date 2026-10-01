@@ -175,9 +175,11 @@ namespace RunicStorageNetwork {
    foreach(string key in job.Owners.Keys)job.Outgoing.Enqueue(key);
    if(containers.Count==0)Plan(job);
   }
-  bool ValidateJob(ServerJob j,out string why){
-   var context=new RemoteContext(j.Op);if(!context.Validate(out why))return false;
+  bool ValidateJob(ServerJob j,out string why)=>ValidateJob(j,out why,out _);
+  bool ValidateJob(ServerJob j,out string why,out RemoteContext context){
+   context=new RemoteContext(j.Op);if(!context.Validate(out why))return false;
    foreach(var previous in j.Containers){var z=RemoteContext.Data(previous.m_uid);if(!context.SourceAllowed(z,out why))return false;if(z.GetOwner()!=j.Owners[R.Key(z.m_uid)]){why="ownership changed";return false;}}
+   if(j.Plan!=null&&!j.Plan.All(context.Allows)){why="gateway path changed";return false;}
    return true;
   }
   int dispatchOffset;
@@ -220,11 +222,11 @@ namespace RunicStorageNetwork {
    j.Snapshots[key]=snapshot;j.Decision.Prepared(key);if(j.Decision.Phase==Phase.Prepared)Plan(j);
   }
   void Plan(ServerJob j){
-   if(!ValidateJob(j,out string why)){Abort(j,why+" / source path changed",true);return;}
+   if(!ValidateJob(j,out string why,out var context)){Abort(j,why+" / source path changed",true);return;}
    // Publish fresh counts independently of whether the complete recipe can
    // be paid. Includes explicit zeros for ingredients consumed by another player.
    foreach(var pair in j.Snapshots){var q=Header(j.Op.Id);q.Write(pair.Key);var current=pair.Value.ToList();foreach(var need in j.Op.Needs)if(!current.Any(s=>s.Item==need.Item))current.Add(new Stock(pair.Key,need.Item,1,0));Wire.Stocks(q,current);Send(j.Op.Peer,"fresh",q);}
-   var stock=j.Op.PlayerStock.Concat(j.Snapshots.Values.SelectMany(s=>s)).ToList();
+   var stock=j.Op.PlayerStock.Concat(j.Snapshots.SelectMany(s=>context.Filter(j.SourcesById[s.Key],s.Value))).ToList();
    if(!j.Op.SelectNeeds(stock)||(j.Plan=Planner.Plan(j.Op.Needs,stock,true))==null){
     Abort(j,"insufficient fresh resources",true);return;
    }

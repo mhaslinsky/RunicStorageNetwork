@@ -1,0 +1,8 @@
+{
+  "source": "RunicGateway export_v10",
+  "approved_visual": "material_preview_v14",
+  "fbx_sha256": "69be7e2580062e2e2c7021a1ef45f4da004a73e907146fdc9a50b1d74c993d75",
+  "triangles": 9069,
+  "stone": "ordinary stone_wall_2x1, normal 0.4",
+  "geometry": "Approved v14 deterministic stone dressing, engraved runes retained"
+}
