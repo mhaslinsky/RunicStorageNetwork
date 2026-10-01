@@ -75,7 +75,9 @@ namespace RunicStorageNetwork {
     // retry defer it without changing counts.
     if(!context.OwnerSource(container,out _,ownLease:true))continue;
     var inventory=container.GetInventory();var view=R.View(container);
-    if(!Transport.Locked(inventory)&&!Integrations.IsBusy(inventory)&&!container.IsInUse()&&view.GetZDO().GetInt(ZDOVars.s_inUse)==0)R.Call(container,"Load");
+    // A failed remote read defers this chest, not the rest of the batch, and
+    // must never be presented as a confirmed empty inventory.
+    if(!Transport.Locked(inventory)&&!Integrations.IsBusy(inventory)&&!container.IsInUse()&&view.GetZDO().GetInt(ZDOVars.s_inUse)==0&&!UnloadedNetworks.LoadForRead(container))continue;
     var items=Stockroom.Snapshot(inventory,key,op.Needs,true);
     var reply=new ZPackage();reply.Write(op.Id);reply.Write(key);reply.Write((long)view.GetZDO().DataRevision);Wire.Stocks(reply,items);Transport.Send(sender,"inspected",reply);
    }

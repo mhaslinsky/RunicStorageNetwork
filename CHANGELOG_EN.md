@@ -2,6 +2,7 @@
 
 ## 0.9.0
 
+- Fixed remote crafting refusing readable inventories after a save-format update or durability rounding. An unreadable chest no longer interrupts resource checks for other chests.
 - Added the Runic Builder's Codex, crafted at the black forge. Bind it to a core and equip it to build using that network's materials within 50 m of its core or connected relays, or the configured relay link range.
 - Each builder's book remembers its own network. Use it on another core to change the binding; renaming the network keeps the connection.
 - Added the Runic Gateway: name a pair of gateways to connect distant parts of the same storage network. Requires experimental distant storage.

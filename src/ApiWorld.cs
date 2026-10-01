@@ -52,7 +52,7 @@ namespace RunicStorageNetwork {
    if(bytes.Length>ApiRules.MaxInventoryBytes)throw new InvalidOperationException("API inventory exceeds byte limit");
    var prefab=RemoteContext.Prefab(z);var source=prefab?prefab.GetComponent<Container>():null;if(!source)throw new InvalidOperationException("No container");
    var inv=new Inventory(source.m_name,source.m_bkg,source.m_width,source.m_height);
-   if(bytes.Length>0){inv.Load(new ZPackage(bytes));var check=new ZPackage();inv.Save(check);if(!bytes.SequenceEqual(check.GetArray()))throw new InvalidOperationException("Inventory does not round-trip without loss");}
+   if(bytes.Length>0){inv.Load(new ZPackage(bytes));var check=new ZPackage();inv.Save(check);if(!InventoryRoundTrip.Preserved(bytes,check.GetArray(),s=>s.GetStableHashCode(),out var reason))throw new InvalidOperationException("Inventory read refused: "+reason);}
    return inv;
   }
   internal static List<Stock> Read(ZDO z,double now,bool force=false){

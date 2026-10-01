@@ -25,7 +25,7 @@ if(!$Output){$Output=Join-Path $root 'artifacts\compile'}
 New-Item -ItemType Directory -Force $Output | Out-Null
 $refs=@(Get-ChildItem "$editor\MonoBleedingEdge\lib\mono\4.7.2-api" -Filter '*.dll' | ForEach-Object FullName)
 $refs+=@(Get-ChildItem "$editor\MonoBleedingEdge\lib\mono\4.7.2-api\Facades" -Filter '*.dll' | ForEach-Object FullName)
-if($Tests){$files=@((Join-Path $root 'src\ApiTypes.cs'),(Join-Path $root 'src\ApiRules.cs'),(Join-Path $root 'src\ApiPayment.cs'),(Join-Path $root 'src\Planner.cs'),(Join-Path $root 'src\NetworkGraph.cs'),(Join-Path $root 'src\GatewayGraph.cs'),(Join-Path $root 'src\TranslationCatalog.cs'),(Join-Path $root 'src\IncrementalCount.cs'),(Join-Path $root 'src\SourceGate.cs'),(Join-Path $root 'src\Recovery.cs'),(Join-Path $root 'src\StockCatalog.cs'),(Join-Path $root 'src\ResourceCatalog.cs'),(Join-Path $root 'src\TerminalRules.cs'),(Join-Path $root 'src\ContainerRules.cs'),(Join-Path $root 'src\BuildToolRules.cs'),(Join-Path $root 'src\NameIndex.cs'),(Join-Path $root 'src\NetworkLabels.cs'))+@(Get-ChildItem "$root\tests" -Filter '*.cs' | ForEach-Object FullName);$target='exe';$name='PlannerTests.exe'}else{
+if($Tests){$files=@((Join-Path $root 'src\InventoryRoundTrip.cs'),(Join-Path $root 'src\ApiTypes.cs'),(Join-Path $root 'src\ApiRules.cs'),(Join-Path $root 'src\ApiPayment.cs'),(Join-Path $root 'src\Planner.cs'),(Join-Path $root 'src\NetworkGraph.cs'),(Join-Path $root 'src\GatewayGraph.cs'),(Join-Path $root 'src\TranslationCatalog.cs'),(Join-Path $root 'src\IncrementalCount.cs'),(Join-Path $root 'src\SourceGate.cs'),(Join-Path $root 'src\Recovery.cs'),(Join-Path $root 'src\StockCatalog.cs'),(Join-Path $root 'src\ResourceCatalog.cs'),(Join-Path $root 'src\TerminalRules.cs'),(Join-Path $root 'src\ContainerRules.cs'),(Join-Path $root 'src\BuildToolRules.cs'),(Join-Path $root 'src\NameIndex.cs'),(Join-Path $root 'src\NetworkLabels.cs'))+@(Get-ChildItem "$root\tests" -Filter '*.cs' | ForEach-Object FullName);$target='exe';$name='PlannerTests.exe'}else{
  $refs+=@(Get-ChildItem $game -Filter 'Unity*.dll' | ForEach-Object FullName)
  $refs+=@("$game\assembly_valheim.dll","$game\assembly_utils.dll","$game\assembly_guiutils.dll","$game\Assembly-CSharp.dll","$game\Splatform.dll","$game\gui_framework.dll","$game\SoftReferenceableAssets.dll","$profile\core\BepInEx.dll","$profile\core\0Harmony.dll","$profile\plugins\ValheimModding-Jotunn\Jotunn.dll")
  $files=@(Get-ChildItem "$root\src" -Filter '*.cs' | ForEach-Object FullName);$target='library';$name='RunicStorageNetwork.dll'
@@ -85,7 +85,7 @@ if($Tests){
  $inspectionMethods=@('internal static List<Stock> Stock','internal static bool Available') | ForEach-Object {Read-TestMethod 'src\CraftPreparation.cs' $_}
  $observationMethods=@('internal static void Observe','internal static List<Stock> Preview') | ForEach-Object {Read-TestMethod 'src\Core.cs' $_}
  $inspectionExtracted=Join-Path $Output 'CraftAvailabilityMethods.cs'
- [IO.File]::WriteAllText($inspectionExtracted,"using System; using System.Linq; using System.Collections.Generic; using RunicStorageNetwork.Logic;`nnamespace RunicStorageNetwork { internal static partial class CraftPreparation {`n"+($inspectionMethods -join "`n")+"`n} internal static partial class Stockroom {`n"+($observationMethods -join "`n")+"`n} }")
+ [IO.File]::WriteAllText($inspectionExtracted,"using System; using System.Linq; using System.Collections.Generic; using RunicStorageNetwork.Logic;`nnamespace RunicStorageNetwork { internal static partial class CraftPreparation {`n"+($inspectionMethods -join "`n")+"`n} internal static partial class Stockroom {`n"+($observationMethods -join "`n")+"`n} static partial class UnloadedNetworks {`n"+(Read-TestMethod 'src\UnloadedNetworks.cs' 'internal static bool LoadForRead')+"`n} }")
  $inspectionProbe=Join-Path $Output 'CraftInspectionRuntimeTests.exe'
  $inspectionRsp=Join-Path $Output 'CraftInspectionRuntimeTests.rsp'
  $inspectionLines=@('/nologo','/nostdlib+','/langversion:9','/target:exe','/define:CRAFT_INSPECTION_RUNTIME_TESTS',('/out:"'+$inspectionProbe+'"'))
@@ -138,7 +138,7 @@ if($Tests){
  [IO.File]::WriteAllText($offlineNodes,"using System.Linq; namespace RunicStorageNetwork { static partial class Topology {`n"+$nodesMethod+"`n} }")
  $offlineLines=@('/nologo','/nostdlib+','/langversion:9','/target:exe','/define:UNLOADED_NETWORK_RUNTIME_TESTS',('/out:"'+$offlineProbe+'"'))
  $offlineLines+=@($refs | Select-Object -Unique | ForEach-Object {'/reference:"'+$_+'"'})
- $offlineLines+=@('src\UnloadedNetworks.cs','src\UnloadedMultiplayer.cs','src\UnloadedAvailability.cs','tests\UnloadedNetworkRuntimeTests.cs' | ForEach-Object {'"'+(Join-Path $root $_)+'"'})
+ $offlineLines+=@('src\InventoryRoundTrip.cs','tests\InventoryRoundTripTests.cs','src\UnloadedNetworks.cs','src\UnloadedMultiplayer.cs','src\UnloadedAvailability.cs','tests\UnloadedNetworkRuntimeTests.cs' | ForEach-Object {'"'+(Join-Path $root $_)+'"'})
  $offlineLines+='"'+$offlineNodes+'"'
  [IO.File]::WriteAllLines($offlineRsp,$offlineLines)
  & "$editor\NetCoreRuntime\dotnet.exe" "$editor\DotNetSdkRoslyn\csc.dll" "@$offlineRsp"

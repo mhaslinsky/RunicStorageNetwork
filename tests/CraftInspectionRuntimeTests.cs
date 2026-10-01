@@ -20,7 +20,7 @@ static class ZDOVars {public const int s_inUse=1,s_items=2;}
 static class ZNet {public static long GetUID()=>3;}
 class ZDOMan {public static ZDOMan instance=new ZDOMan();public void RequestZDO(ZDOID id){}}
 class Inventory {public List<Stock> Items=new List<Stock>();}
-class Container {public ZNetView View;public Inventory Inventory=new Inventory();public Inventory GetInventory()=>Inventory;public bool IsInUse()=>false;}
+class Container {public ZNetView View;public bool FailRead;public Inventory Inventory=new Inventory();public Inventory GetInventory()=>Inventory;public bool IsInUse()=>false;}
 class Recipe:UnityEngine.Object {public object m_resources;}
 class Player {}
 class ItemDrop {public class ItemData {}}
@@ -34,7 +34,8 @@ class ZPackage {
 class ZNetScene {public static ZNetScene instance=new ZNetScene();public readonly Dictionary<ZDOID,GameObject> Objects=new Dictionary<ZDOID,GameObject>();public GameObject FindInstance(ZDOID id)=>Objects.TryGetValue(id,out var go)?go:null;}
 namespace RunicStorageNetwork {
  static class Plugin {internal static void Info(string text){}internal static void Debug(string text){}}
- static class R {internal static string Key(ZDOID id)=>id.Value.ToString();internal static ZNetView View(Container c)=>c.View;internal static object Call(object obj,string method)=>null;}
+ static class R {internal static string Key(ZDOID id)=>id.Value.ToString();internal static ZNetView View(Container c)=>c.View;internal static object Call(object obj,string method){if(obj is Container c&&c.FailRead)throw new InvalidOperationException("Unreadable saved inventory");return null;}}
+ static partial class UnloadedNetworks {static bool ReadFailure(Container c,Exception e)=>c!=null&&c.FailRead;}
  class Core:UnityEngine.Object {internal static List<Core> Live=new List<Core>();internal void Invalidate(){}internal ZDOID Id=new ZDOID{Value=999};internal List<Container> Pool=new List<Container>();}
  class Operation {
   internal string Id=Guid.NewGuid().ToString("N"),Target="recipe";internal bool Build,Quote;internal long Peer=7,PlayerId;internal int Quality=1,Multiplier=1;internal ZDOID Core,Station,Actor;
@@ -116,6 +117,7 @@ static class CraftInspectionRuntimeTests {
   Test("old selection reply cannot overwrite new selection",()=>{var op=Request();selection.Recipe=new Recipe();CraftInspection.Ensure(selection,core);Reply(op,-1);Assert(Count()==50,"old selection accepted");});
   Test("unreadable source sends no false empty result",()=>{RemoteContext.Readable=false;var p=selection.Op.Write();p.Write(1);p.Write(core.Pool[0].View.Zdo.Id);CraftInspection.Request(7,p);Assert(Transport.Sent.Count==0,"unreadable source reported empty");});
   Test("readable empty source sends a confirmed empty snapshot",()=>{var p=selection.Op.Write();p.Write(1);p.Write(core.Pool[0].View.Zdo.Id);CraftInspection.Request(7,p);Assert(Transport.Sent.Count==1&&Transport.Sent[0].Method=="inspected","empty reply missing");});
+  Test("bad unloaded chest does not abort healthy chests in same RPC",()=>{Reset(3);core.Pool[0].FailRead=true;var p=selection.Op.Write();p.Write(3);foreach(var c in core.Pool)p.Write(c.View.Zdo.Id);CraftInspection.Request(7,p);Assert(Transport.Sent.Count==2&&Transport.Sent.All(s=>s.Method=="inspected"),"healthy replies discarded or bad chest reported empty");foreach(var reply in Transport.Sent){reply.Data.ReadString();Assert(reply.Data.ReadString()!="1","false snapshot for failed chest");}});
   Test("inspection pauses while recipe is reserved",()=>{CraftPreparation.HasReservation=true;CraftInspection.Tick();Assert(Transport.Sent.Count==0,"queried during reservation");});
   Test("inspection pauses while payment is executing",()=>{Actions.Waiting=selection;CraftInspection.Tick();Assert(Transport.Sent.Count==0,"queried during payment");});
   Test("in-flight reply cannot change counts during a reservation",()=>{var op=Request();CraftPreparation.HasReservation=true;Reply(op,-1);Assert(Count()==50,"reservation display overwritten");});

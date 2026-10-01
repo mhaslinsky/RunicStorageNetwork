@@ -207,8 +207,9 @@ namespace RunicStorageNetwork {
    if(releasedLeases.Contains(op.Id+key)){answer.Write(false);answer.Write("operation already released");Send(Server,"prepared",answer);return;}
    if(c&&c.GetInventory()!=null&&Leases.TryGetValue(c.GetInventory(),out var existing)&&existing.Op.Id==op.Id){answer.Write(true);Wire.Stocks(answer,existing.Snapshot);Send(Server,"prepared",answer);return;}
    var context=new RemoteContext(op);bool valid=op.ReadRequirements(out string why)&&context.OwnerSource(c,out why);
+   if(valid&&!UnloadedNetworks.LoadForRead(c)){valid=false;why="remote inventory could not be read safely";}
    if(valid){
-    R.Call(c,"Load");var inventory=c.GetInventory();var lease=new Lease{Op=op,Container=c,Key=key,Snapshot=Stockroom.Snapshot(inventory,key,op.Needs,true)};
+    var inventory=c.GetInventory();var lease=new Lease{Op=op,Container=c,Key=key,Snapshot=Stockroom.Snapshot(inventory,key,op.Needs,true)};
     Leases.Add(inventory,lease);R.Set(c,"m_inUse",true);R.View(c).GetZDO().Set(ZDOVars.s_inUse,1);R.View(c).GetZDO().Set("rsn_lease",op.Id);Integrations.Block(inventory,true);
     answer.Write(true);Wire.Stocks(answer,lease.Snapshot);
    }else {answer.Write(false);answer.Write(why??"owner unavailable");}

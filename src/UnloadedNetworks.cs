@@ -301,6 +301,10 @@ namespace RunicStorageNetwork {
    if(!IsReplica(c))return false;var r=c.GetComponent<UnloadedReplica>();
    if(!r.ReportedFailure||r.FailedRevision!=r.Data.DataRevision){r.ReportedFailure=true;r.FailedRevision=r.Data.DataRevision;Plugin.Error("experimental inventory unavailable "+R.Key(r.Data.m_uid),e);}return true;
   }
+  internal static bool LoadForRead(Container c){
+   try{R.Call(c,"Load");return true;}
+   catch(Exception e) when(ReadFailure(c,e)){return false;}
+  }
   internal static bool CanUseUnloaded(Container c){
    if(!Enabled||!c||!R.Valid(R.View(c))||c.GetInventory()==null)return false;
    var z=R.View(c).GetZDO();
@@ -338,7 +342,7 @@ namespace RunicStorageNetwork {
    if(r.Read&&bytes.SequenceEqual(r.Expected))return false;
    r.Read=false;var inventory=__instance.GetInventory();
    // Never silently drop unknown or altered item records on an offline rewrite.
-   if(bytes.Length>0){inventory.Load(new ZPackage(bytes));var roundTrip=new ZPackage();inventory.Save(roundTrip);if(!bytes.SequenceEqual(roundTrip.GetArray())){inventory.RemoveAll();r.Read=false;throw new InvalidOperationException("Offline inventory cannot round-trip unchanged; visit this chest before using it remotely.");}}
+   if(bytes.Length>0){inventory.Load(new ZPackage(bytes));var roundTrip=new ZPackage();inventory.Save(roundTrip);if(!Logic.InventoryRoundTrip.Preserved(bytes,roundTrip.GetArray(),s=>s.GetStableHashCode(),out var reason)){inventory.RemoveAll();r.Read=false;throw new InvalidOperationException("Offline inventory read refused: "+reason+"; saved chest data was not changed.");}}
    else inventory.RemoveAll();
    r.Expected=(byte[])bytes.Clone();r.Read=true;r.ReportedFailure=false;R.Set(__instance,"m_lastRevision",r.Data.DataRevision);__result=true;return false;
   }

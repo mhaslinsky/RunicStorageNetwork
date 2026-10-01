@@ -86,7 +86,7 @@ class Container:MonoBehaviour {
  public enum PrivacySetting {Public,Private}
  public string m_name;public int m_width=4,m_height=2;public object m_bkg;public PrivacySetting m_privacy;
  internal ZNetView m_nview;internal Piece m_piece;internal Inventory m_inventory;internal uint m_lastRevision;
- public Inventory GetInventory()=>m_inventory;internal bool Open;public bool IsInUse()=>Open;internal bool Load()=>true;internal void Save(){GetComponent<ZNetView>().GetZDO().Set(ZDOVars.s_items,m_inventory.Bytes);}
+ public Inventory GetInventory()=>m_inventory;internal bool Open;internal Action Loader;public bool IsInUse()=>Open;internal bool Load(){Loader?.Invoke();return true;}internal void Save(){GetComponent<ZNetView>().GetZDO().Set(ZDOVars.s_items,m_inventory.Bytes);}
 }
 class ZPackage {
  MemoryStream stream=new MemoryStream();BinaryReader reader;BinaryWriter writer;
@@ -97,8 +97,8 @@ class ZPackage {
  public int ReadInt()=>reader.ReadInt32();public long ReadLong()=>reader.ReadInt64();public bool ReadBool()=>reader.ReadBoolean();public ZDOID ReadZDOID()=>new ZDOID{Id=ReadInt()};public Vector3 ReadVector3()=>new Vector3(reader.ReadSingle(),reader.ReadSingle(),reader.ReadSingle());
 }
 class Inventory {
- internal byte[] Bytes=Array.Empty<byte>();internal static bool DropUnknown;
- public Inventory(string n,object b,int w,int h){}public void Load(ZPackage p){Bytes=(byte[])p.GetArray().Clone();if(DropUnknown)Bytes=new byte[]{0};}
+ internal byte[] Bytes=Array.Empty<byte>();internal static bool DropUnknown;internal static Func<byte[],byte[]> Normalize;
+ public Inventory(string n,object b,int w,int h){}public void Load(ZPackage p){Bytes=(byte[])p.GetArray().Clone();if(DropUnknown)Bytes=new byte[]{0};if(Normalize!=null)Bytes=Normalize(Bytes);}
  public void Save(ZPackage p){p.Put((byte[])Bytes.Clone());}public void RemoveAll(){Bytes=Array.Empty<byte>();}
 }
 namespace RunicStorageNetwork {
@@ -184,7 +184,10 @@ static class UnloadedNetworkRuntimeTests {
   Test("ordinary node data revision does not rebuild graph",()=>{Start();int before=Topology.Changes;core.DataRevision++;Call("Changed",core);Check(Topology.Changes==before,"health/other data dirtied graph");});
   Test("node movement updates retained position and invalidates graph",()=>{Start();int before=Topology.Changes;core.Position=new Vector3(40,0,0);Call("Changed",core);Check(Topology.Changes>before&&UnloadedNetworks.FindCore(core.m_uid).transform.position.x==40,"movement missed");});
   Test("offline inventory round trip preserves all bytes",()=>{Start();var c=Request();Load(c);Check(c.GetInventory().Bytes.SequenceEqual(chest.Bytes),"metadata changed");});
+  Test("remote legacy inventory normalizes without writing during reads",()=>{var item=new InventoryRoundTripTests.Record{Prefab="Wood"};chest.Bytes=InventoryRoundTripTests.Encode(107,item);var original=(byte[])chest.Bytes.Clone();var normalized=InventoryRoundTripTests.Encode(109,item);Inventory.Normalize=_=>normalized;try{Start();var c=Request();Load(c);Check(chest.Bytes.SequenceEqual(original)&&c.GetInventory().Bytes.SequenceEqual(normalized)&&c.GetComponent<UnloadedReplica>().Read,"read overwrote source or normalization was refused");Call("SaveReplica",c);Check(chest.Bytes.SequenceEqual(normalized),"validated write failed");}finally{Inventory.Normalize=null;}});
+  Test("normalized remote inventory still rejects a concurrent writer",()=>{var item=new InventoryRoundTripTests.Record();chest.Bytes=InventoryRoundTripTests.Encode(109,item);var original=(byte[])chest.Bytes.Clone();item.Data=item.Data.Reverse().ToDictionary(p=>p.Key,p=>p.Value);Inventory.Normalize=_=>InventoryRoundTripTests.Encode(109,item);try{Start();var c=Request();Load(c);chest.Bytes=original.Concat(new byte[]{1}).ToArray();var changed=(byte[])chest.Bytes.Clone();Check(Refuses(()=>Call("SaveReplica",c))&&chest.Bytes.SequenceEqual(changed),"normalized data bypassed concurrent-write guard");}finally{Inventory.Normalize=null;}});
   Test("unknown or lossy inventory format refuses offline read",()=>{Start();var c=Request();var before=(byte[])chest.Bytes.Clone();Inventory.DropUnknown=true;Check(Refuses(()=>Load(c))&&chest.Bytes.SequenceEqual(before),"lossy read wrote data");});
+  Test("failed remote read returns refusal and logs once per revision",()=>{Start();var c=Request();c.Loader=()=>Load(c);Inventory.DropUnknown=true;int messages=Plugin.Messages.Count;for(int i=0;i<3;i++)Check(!UnloadedNetworks.LoadForRead(c),"failed read reported successful");Check(Plugin.Messages.Count==messages+1&&!c.GetComponent<UnloadedReplica>().Read,"repeated logs or unreadable snapshot accepted");Inventory.DropUnknown=false;Check(UnloadedNetworks.LoadForRead(c)&&c.GetComponent<UnloadedReplica>().Read,"retry did not recover");});
   Test("successful offline save updates authoritative record",()=>{Start();var c=Request();Load(c);c.GetInventory().Bytes=new byte[]{109,2,7,8};Call("SaveReplica",c);Check(chest.Bytes.SequenceEqual(new byte[]{109,2,7,8}),"not saved");});
   Test("concurrent record change refuses stale overwrite",()=>{Start();var c=Request();Load(c);chest.Bytes=new byte[]{109,1,4};Check(Refuses(()=>Call("SaveReplica",c))&&chest.Bytes.SequenceEqual(new byte[]{109,1,4}),"overwrote external change");});
   Test("unpaid conflict can release without overwriting saved items",()=>{Start();var c=Request();Load(c);chest.Bytes=new byte[]{109,1,4};c.GetInventory().Bytes=new byte[]{109,2,7};Check(Refuses(()=>Call("SaveReplica",c))&&UnloadedNetworks.DiscardUnpaid(c,false),"failed write stayed locked");Load(c);Check(c.GetInventory().Bytes.SequenceEqual(chest.Bytes),"discarded inventory was reused");});
