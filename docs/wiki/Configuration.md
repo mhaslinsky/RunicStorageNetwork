@@ -1,29 +1,48 @@
 # Configuration
 
-For Runic Storage Network **0.9.0**. [Русская версия](https://github.com/rerit33/RunicStorageNetwork/wiki/Configuration-RU).
+For Runic Storage Network **1.0.0**. [Русская версия](https://github.com/rerit33/RunicStorageNetwork/wiki/Configuration-RU).
 
 The configuration file is `BepInEx/config/local.runicstoragenetwork.cfg`. It is created after the mod first starts. With a mod manager, use the file inside the profile you actually play with.
 
-`Network`, `Containers` and `Building` settings are administrator-only in multiplayer and synchronized by Jötunn. The server decides these settings for the session. Changes applied through the configuration system take effect during play; editing a file on disk alone does not guarantee a live reload. Editing while the game/server is stopped and then starting it is the simplest way to apply file changes.
+`Network`, `Containers`, `Building` and `Content` settings are administrator-only in multiplayer and synchronized by Jötunn. The server decides these settings for the session. Changes applied through the configuration system take effect during play; editing a file on disk alone does not guarantee a live reload. Editing while the game/server is stopped and then starting it is the simplest way to apply file changes.
 
 `Experimental` and `Diagnostics` settings are local to each installation. In particular, changing the experimental option only on the server does **not** enable it on clients.
 
 ## Experimental distant storage
 
-**Experimental, disabled by default, and may cause errors, including inventory problems. Back up the world before testing.**
+**Experimental and may cause errors, including inventory problems. Enabled by default for new configurations from 1.0. Existing values are kept. Back up the world before testing.**
 
 ```ini
 [Experimental]
-ExperimentalUnloadedNetworks = false
+ExperimentalUnloadedNetworks = true
 ```
 
-Set `ExperimentalUnloadedNetworks = true` to allow connected networks and eligible storage outside a player's loaded area. This also enables Runic Gateway links and the [API for other mods](https://github.com/rerit33/RunicStorageNetwork/wiki/API). Gateways use the relay's local storage, supply and connection ranges; only their paired distant link ignores distance. When disabled, placed gateways remain visible but do not supply resources or act as relays.
+`ExperimentalUnloadedNetworks = true` allows connected networks and eligible storage outside a player's loaded area. If an older config has `false`, change it to `true` and restart to use this feature. This also enables the [API for other mods](https://github.com/rerit33/RunicStorageNetwork/wiki/API). Runic Gateway links additionally require `RunicGatewayEnabled = true`. Gateways use the relay's local storage, supply and connection ranges; only their paired distant link ignores distance. When disabled, placed gateways remain visible but do not supply resources or act as relays.
 
 For multiplayer, install the same RSN version on the host or dedicated server and every client, then enable the option in **each** installation. Fully restart the game clients and host/server after changing it. To disable it, set `false` everywhere and restart. If the server has it disabled, clients use ordinary loaded-area networking and the experimental API is unavailable.
 
 The feature uses saved network and inventory records; it does not keep the entire base's world area running. You do not need to visit the core first after joining. Discovery starts when the network is used, so the first request may need time to finish. This does not make unrelated machines or world simulation run while unloaded.
 
 Vanilla and eligible modded storage use the same container filters. If an inventory cannot be read and saved safely in this mode, it is unavailable for distant access. Custom storage behavior needs individual testing. The new API has been tested in single-player near a core and with the core unloaded; its multiplayer integration remains under testing.
+
+## Optional content
+
+Content is available only when its switch is `true`. All three switches default to `true` and are controlled by the server in multiplayer.
+
+```ini
+[Content]
+StorageCodexEnabled = true
+BuildersCodexEnabled = true
+RunicGatewayEnabled = true
+```
+
+| Setting | When set to `false` |
+| --- | --- |
+| `StorageCodexEnabled` | Hides the Storage Codex building recipe and disables its storage window and withdrawals. |
+| `BuildersCodexEnabled` | Hides the equippable Builder's Codex recipe and disables binding and its extra building range. |
+| `RunicGatewayEnabled` | Hides the Runic Gateway building recipe and removes gateways from network routes. |
+
+Existing items, buildings and saved bindings are kept. Set the switch back to `true` to restore their functions. The ordinary Runic Codex crafting ingredient is unaffected. Only gateways also require experimental distant storage; the Storage Codex and Builder's Codex can use ordinary loaded-area networks.
 
 ## Network
 

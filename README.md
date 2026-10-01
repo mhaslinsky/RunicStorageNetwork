@@ -1,8 +1,8 @@
 # Runic Storage Network
 
-> **Experimental:** Unloaded networks, Runic Gateways and the mod API require the optional distant-storage feature, disabled by default, and may cause errors.
+> **Experimental:** Distant storage and the mod API are enabled by default in new configurations from 1.0 and may cause errors. Existing settings are kept.
 >
-> **Экспериментально:** Выгруженные сети, рунические мосты и API требуют включения экспериментальной функции удалённых хранилищ. Она по умолчанию выключена и может вызывать ошибки.
+> **Экспериментально:** Удалённые хранилища и API включены по умолчанию в новых конфигурациях с версии 1.0 и могут вызывать ошибки. Сохранённые настройки не меняются.
 
 [English](#english) | [Русский](#русский)
 
@@ -19,6 +19,8 @@ Runic Storage Network connects your base's chests into a supply network. Craft a
 Craft and build through the familiar menus while materials are consumed directly from connected chests. A Storage Codex also lets you search the network and retrieve items into your inventory.
 
 ### Build pieces
+
+The Storage Codex, equippable Builder's Codex and Runic Gateway are available only when their individual `[Content]` settings are `true` (all default to `true`). Gateways also require `ExperimentalUnloadedNetworks = true`. See [content settings](https://github.com/rerit33/RunicStorageNetwork/wiki/Configuration#optional-content).
 
 #### Storage Network Core
 
@@ -93,7 +95,7 @@ By default, chests connect within **20 m** of a node. Crafting stations and buil
 
 Requires **BepInExPack Valheim** and **Jötunn**. For multiplayer, install the same version of the mod and its required dependencies on the server and every player's client.
 
-By default, the network works with stationary containers built by players in loaded areas of the world, including containers added by other mods. Enable the [experimental option](https://github.com/rerit33/RunicStorageNetwork/wiki/Configuration#experimental-distant-storage) to also access eligible unloaded storage. Backpacks, tombstones, ship and cart storage, and personal chests are not connected.
+The network works with stationary containers built by players, including containers added by other mods. The [experimental distant-storage option](https://github.com/rerit33/RunicStorageNetwork/wiki/Configuration#experimental-distant-storage), enabled by default for new configurations, also provides access to eligible unloaded storage. If your existing config has it set to `false`, change it to `true` and restart to use distant storage and gateways. Backpacks, tombstones, ship and cart storage, and personal chests are not connected.
 
 Machines that consume or fire their contents stay out of the network by default. The network does not draw crafting materials from the obliterator. Smelters, kilns, cooking stations, fermenters, beehives, sap collectors, ballistae and catapults are excluded on the same rule, including modded equivalents built on the same components.
 
@@ -128,6 +130,8 @@ Runic Storage Network объединяет сундуки базы в сеть �
 Пользуйтесь привычными меню крафта и строительства — необходимые ресурсы расходуются прямо из подключённых сундуков. Кодекс запасов также позволяет искать предметы в сети и забирать их в инвентарь.
 
 ### Постройки
+
+Кодекс запасов, экипируемый Кодекс строителя и Рунический мост доступны только при значении `true` их отдельных настроек в разделе `[Content]` (по умолчанию все включены). Мост также требует `ExperimentalUnloadedNetworks = true`. См. [настройки контента](https://github.com/rerit33/RunicStorageNetwork/wiki/Configuration-RU#дополнительный-контент).
 
 #### Ядро сети хранилищ — Storage Network Core
 
@@ -202,7 +206,7 @@ Runic Storage Network объединяет сундуки базы в сеть �
 
 Требуются **BepInExPack Valheim** и **Jötunn**. Для совместной игры установите одинаковую версию мода и необходимые зависимости на сервере и у всех игроков.
 
-По умолчанию сеть работает со стационарными хранилищами, построенными игроками, в загруженной области мира, включая хранилища из других модов. [Экспериментальная настройка](https://github.com/rerit33/RunicStorageNetwork/wiki/Configuration-RU#экспериментальные-удалённые-хранилища) позволяет также использовать подходящие выгруженные хранилища. Рюкзаки, надгробия, корабельные трюмы, повозки и личные сундуки не подключаются.
+Сеть работает со стационарными хранилищами, построенными игроками, включая хранилища из других модов. [Экспериментальная настройка](https://github.com/rerit33/RunicStorageNetwork/wiki/Configuration-RU#экспериментальные-удалённые-хранилища), включённая по умолчанию в новых конфигурациях, позволяет также использовать подходящие выгруженные хранилища. Если в вашем конфиге стоит `false`, измените его на `true` и перезапустите игру для работы удалённых хранилищ и мостов. Рюкзаки, надгробия, корабельные трюмы, повозки и личные сундуки не подключаются.
 
 Устройства, которые расходуют или расстреливают своё содержимое, по умолчанию в сеть не входят. Сеть не забирает материалы для крафта из уничтожителя. По тому же правилу исключаются плавильни, углевыжигательные печи, очаги, бродильни, ульи, сокосборники, баллисты и катапульты, в том числе их аналоги из других модов, собранные на тех же компонентах.
 

@@ -8,7 +8,7 @@ namespace RunicStorageNetwork {
  internal static class GatewayRuntime {
   static readonly int hash=Gateway.PrefabName.GetStableHashCode();
   static readonly Dictionary<long,NetworkGraph> graphs=new Dictionary<long,NetworkGraph>();
-  static ZDOMan world;static long revision=-1;
+  static ZDOMan world;static long revision=-1;static bool gatewayEnabled;
   internal static bool Is(ZDO z)=>z!=null&&z.GetPrefab()==hash;
   internal static NetworkNode Describe(ZDO z,long actor=0){
    bool root=z.GetPrefab()=="RSN_NetworkCore".GetStableHashCode();
@@ -17,11 +17,11 @@ namespace RunicStorageNetwork {
   internal static NetworkNode Decorate(NetworkNode node,ZDO z){node.Gateway=Is(z);if(node.Gateway){node.Tag=NetworkLabels.Normalize(z.GetString(Gateway.TagKey,""));node.Binding=z.GetString(Gateway.BindingKey,"");}return node;}
   internal static void Clear(){world=null;revision=-1;graphs.Clear();}
   internal static NetworkGraph Graph(long actor){
-   if(world!=ZDOMan.instance||revision!=UnloadedNetworks.CatalogRevision){world=ZDOMan.instance;revision=UnloadedNetworks.CatalogRevision;graphs.Clear();}
+   if(world!=ZDOMan.instance||revision!=UnloadedNetworks.CatalogRevision||gatewayEnabled!=ContentSettings.GatewayEnabled){world=ZDOMan.instance;revision=UnloadedNetworks.CatalogRevision;gatewayEnabled=ContentSettings.GatewayEnabled;graphs.Clear();}
    if(graphs.TryGetValue(actor,out var cached))return cached;
    // Once per topology revision and actor, never per recipe or item. Counts and
    // inventory revisions do not invalidate these local-component/path caches.
-   var records=UnloadedNetworks.ApiNodes.Where(z=>z!=null&&z.IsValid()).ToArray();
+   var records=UnloadedNetworks.ApiNodes.Where(z=>z!=null&&z.IsValid()&&(gatewayEnabled||!Is(z))).ToArray();
    if(UnloadedNetworks.Authority&&!graphs.ContainsKey(0)){
     // Binding is a topology fact, independent of the requesting player's wards.
     var global=NetworkGraph.Automatic(records.Select(z=>Describe(z)),Plugin.RelayLink.Value);

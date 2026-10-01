@@ -46,6 +46,7 @@ class Player:UnityEngine.Object {public static Player m_localPlayer;public Inven
 class ZNet {public static long GetUID()=>3;}
 class ZNetScene:UnityEngine.Object {public static ZNetScene instance=new ZNetScene();public Dictionary<string,UnityEngine.GameObject> Prefabs=new Dictionary<string,UnityEngine.GameObject>();public UnityEngine.GameObject GetPrefab(string name)=>Prefabs.TryGetValue(name,out var p)?p:null;}
 namespace RunicStorageNetwork {
+ static class ContentSettings {internal static bool TerminalEnabled=true;}
  static class GatewayRuntime {internal static bool ValidatePlan(Operation op,IEnumerable<Debit> plan)=>true;}
  static class Plugin {internal static bool Enabled=true;internal static void Debug(string t){}internal static void Error(string t,Exception e){}internal static void Critical(string id,string reason){}}
  class Core:UnityEngine.Object {internal bool Valid=true;internal ZDOID Id=new ZDOID{Id=2};internal UnityEngine.Transform transform=new UnityEngine.Transform();internal T GetComponent<T>() where T:class=>new NetworkMember() as T;}
@@ -96,6 +97,8 @@ static class TerminalRuntimeTests {
   p.Write(TerminalTransfer.Pack(new InventoryDelta{Parts=new List<InventoryDelta.Part>{new InventoryDelta.Part{Item=item,Amount=amount}}}));return p;
  }
  public static int Main(){try{
+  Test("disabled terminal rejects local requests and coordinator access",()=>{ContentSettings.TerminalEnabled=false;try{Check(!TerminalTransfer.Start(access,core,player,"Wood",1,10),"disabled terminal started withdrawal");Check(!new RemoteContext(new Operation{Station=access.Id}).TerminalPoint(player.transform.position,out _),"coordinator ignored terminal switch");}finally{ContentSettings.TerminalEnabled=true;}});
+  Test("disabling terminal during payment rejects delivery for rollback",()=>{string id=Start();ContentSettings.TerminalEnabled=false;try{TerminalTransfer.Tick();TerminalTransfer.Ready(7,Reply(id));Check(player.Inventory.GetAllItems().Count==0&&!Transport.Instance.Results.Last().Success,"disabled terminal delivered paid parcel");}finally{ContentSettings.TerminalEnabled=true;}});
   Test("double click sends only one transfer",()=>{Start();Check(!TerminalTransfer.Start(access,core,player,"Wood",1,10)&&Transport.Instance.Requests.Count==1,"duplicate accepted");});
   Test("owner parcel preserves custom data and delivers exact amount",()=>{string id=Start();TerminalTransfer.Ready(7,Reply(id,custom:"gem-data"));Check(player.Inventory.GetAllItems().Single().Custom=="gem-data"&&player.Inventory.GetAllItems().Single().m_stack==10,"metadata/count lost");});
   Test("duplicate ready repeats receipt without giving items again",()=>{string id=Start();TerminalTransfer.Ready(7,Reply(id));TerminalTransfer.Ready(7,Reply(id));Check(player.Inventory.GetAllItems().Sum(i=>i.m_stack)==10&&Transport.Instance.Results.Count==2,"duplicate delivery");});

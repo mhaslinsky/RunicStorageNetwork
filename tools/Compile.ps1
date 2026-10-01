@@ -201,4 +201,15 @@ if($Tests){
  if($LASTEXITCODE -ne 0){throw 'Offline inventory runtime test compilation failed'}
  & $offlineReadProbe
  if($LASTEXITCODE -ne 0){throw 'Offline inventory runtime tests failed'}
+ # Content configuration drives the actual recipe switches without unregistering saved prefabs.
+ $contentProbe=Join-Path $Output 'ContentRuntimeTests.exe'
+ $contentRsp=Join-Path $Output 'ContentRuntimeTests.rsp'
+ $contentLines=@('/nologo','/nostdlib+','/langversion:9','/target:exe','/nowarn:0649','/define:CONTENT_RUNTIME_TESTS',('/out:"'+$contentProbe+'"'))
+ $contentLines+=@($refs | Select-Object -Unique | ForEach-Object {'/reference:"'+$_+'"'})
+ $contentLines+=@('src\ContentSettings.cs','tests\ContentRuntimeTests.cs' | ForEach-Object {'"'+(Join-Path $root $_)+'"'})
+ [IO.File]::WriteAllLines($contentRsp,$contentLines)
+ & "$editor\NetCoreRuntime\dotnet.exe" "$editor\DotNetSdkRoslyn\csc.dll" "@$contentRsp"
+ if($LASTEXITCODE -ne 0){throw 'Content runtime test compilation failed'}
+ & $contentProbe
+ if($LASTEXITCODE -ne 0){throw 'Content runtime tests failed'}
 }

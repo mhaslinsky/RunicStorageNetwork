@@ -79,7 +79,7 @@ The script loads these defaults; explicit parameters take priority. The `.local`
 
 ## Unloaded-network experiment
 
-The optional unloaded-network feature is included in `main` and disabled by default. To build a local test package, configure the paths above, then run:
+The optional unloaded-network feature defaults to enabled for new configurations from 1.0. Existing settings are retained. For a current package with all content, use the 1.0 candidate build below. The older asset-reuse script remains available for isolated unloaded-network work:
 
 ```powershell
 .\tools\BuildUnloadedExperiment.ps1 -BasePackage 'C:\Path\To\RunicStorageNetwork-0.8.1.zip'
@@ -91,7 +91,7 @@ Optional game patches and the unloaded inventory scheduler are installed only wh
 
 For an installed experiment, `ZNetScene.Awake` attaches the new world, then saved records are indexed after `ZNet.Start` completes the world load. Both old and chunked saves are loaded by that method; scanning in scene Awake is too early. Retained live containers use their existing inventory even if their surrounding zone is unloaded, provided the scene instance and indexed world record still match. Normal eligibility, placement, ward and reservation checks still apply.
 
-The `[Experimental] ExperimentalUnloadedNetworks` setting defaults to `false` and is sampled at plugin startup. Changing it requires fully restarting the game or dedicated server; leaving and re-entering a world does not change installed patches. Enable it on the host/dedicated server and all clients using the same experimental build. The server indexes saved object metadata once, then creates inactive adapters for requested inventories. It does not simulate distant creatures, factories or entire zones. Containers use the existing allow/deny rules. An inventory must survive an unchanged save/load round trip before remote writes are allowed; custom storage formats and older inventory serialization may require visiting the chest first. This is not proof of compatibility with every container mod.
+The `[Experimental] ExperimentalUnloadedNetworks` setting defaults to `true` for new configurations and is sampled at plugin startup. Existing `false` values are kept. Changing it requires fully restarting the game or dedicated server; leaving and re-entering a world does not change installed patches. Enable it on the host/dedicated server and all clients using the same build. The server indexes saved object metadata once, then creates inactive adapters for requested inventories. It does not simulate distant creatures, factories or entire zones. Containers use the existing allow/deny rules. An inventory must survive an unchanged save/load round trip before remote writes are allowed; custom storage formats and older inventory serialization may require visiting the chest first. This is not proof of compatibility with every container mod.
 
 Clients request discovery at an authenticated player's access point. The server sends paged IDs and revision hints, followed by native targeted ZDO replication. Client adapters are read-only; unloaded inventory writes remain with the server, through the existing prepare/commit/release protocol. A connected owner is never displaced. A client unloading an unreserved live container saves it and releases ownership through native replication. Unreserved containers left by disconnected peers can be reclaimed; an unresolved reservation is never cleared just because its owner disconnected.
 
@@ -100,6 +100,18 @@ The save/ownership handoff is restricted to the `ResetZDO` call inside `ZNetScen
 Discovery subscriptions expire after six seconds without access. Only active subscribers receive changed records; unchanged ownership attempts do not recount resources. Network movement within the same component does not resend the full catalog. Native records and catalog pages have per-frame budgets. The isolated fixture exercises both production unloaded-network classes, including cold remote discovery, delayed/out-of-order data, access checks, ownership transitions, idle expiry and client write refusal. It does not simulate game transport or prove multiplayer correctness.
 
 Manual validation on a backed-up test world: enter near the far end of a relay chain without visiting its core, inspect and craft with distant resources, withdraw through a Storage Codex, return to the chests and verify the remaining counts, then save and re-enter. Repeat with a modded container, an interrupted/broken relay chain, and the option disabled. In multiplayer, test both a player-hosted and dedicated server: keep everyone away from the core, then have two players craft/withdraw simultaneously. Have one player add/remove items directly while another browses the codex, move between the chest and distant network, disconnect the chest owner, and verify persisted counts after a restart. Also check disabled-server fallback. Runtime and performance results remain unverified until these checks are performed in game.
+
+## Local 1.0 candidate
+
+With the separate Unity build project prepared, build the DLL, all current assets and the six-file package:
+
+```powershell
+.\tools\BuildGatewayPreview.ps1 -Output artifacts\release-1.0.0-final
+```
+
+This runs the isolated tests, API consumer checks, Unity Editor asset checks and release-package validation. Output: `dist/RunicStorageNetwork-1.0.0-gateway-preview.zip`. The package includes all four build pieces and both codex items. It is not installed or published automatically.
+
+The `[Content]` switches are synchronized from the server and keep all prefabs registered. Test disabling and re-enabling each switch with existing objects and inventory items, including during a withdrawal. Runic Gateway also requires experimental distant storage; the other two switches are independent of it. Configuration tests use stand-ins and do not replace in-game or multiplayer checks.
 
 ## Repository contents
 

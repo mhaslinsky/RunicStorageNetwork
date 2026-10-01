@@ -38,6 +38,7 @@ namespace RunicStorageNetwork {
    Add("codex_no_network","Outside network coverage","Вне зоны действия сети");
    Add("relay_description","Automatically connects to nearby cores and relays. Extends shared storage coverage for crafting, upgrades and building.","Автоматически соединяется с соседними ядрами и реле. Расширяет общую сеть хранилищ для крафта, улучшений и строительства.");
    Add("disabled","Supply disabled","Снабжение выключено");
+   Add("content_disabled","Disabled in mod settings","Отключено в настройках мода");
    Add("choose","Choose a network","Выберите сеть");
    Add("unbound","No network selected","Сеть не выбрана");
    Add("connected","Connected","Подключено");

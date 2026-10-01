@@ -27,7 +27,7 @@ namespace RunicStorageNetwork {
    drop.m_itemData.m_dropPrefab=prefab;drop.m_itemData.m_stack=1;drop.m_itemData.m_quality=1;
    var config=new ItemConfig{
     Name=drop.m_itemData.m_shared.m_name,Description=drop.m_itemData.m_shared.m_description,Icon=icon,
-    CraftingStation="blackforge",MinStationLevel=1,Amount=1,Enabled=true,RequireOnlyOneIngredient=false,
+    CraftingStation="blackforge",MinStationLevel=1,Amount=1,Enabled=ContentSettings.BuilderEnabled,RequireOnlyOneIngredient=false,
     Requirements=new[]{new RequirementConfig(RunicCodexItem.PrefabName,1),new RequirementConfig("BlackCore",1),new RequirementConfig("Eitr",5),new RequirementConfig("Silver",2),new RequirementConfig("Crystal",2)}
    };
    if(!ItemManager.Instance.AddItem(new CustomItem(prefab,false,config)))throw new InvalidOperationException("Jotunn rejected Runic Builder's Codex");

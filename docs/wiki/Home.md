@@ -14,6 +14,6 @@ Connect storage across your Valheim base, craft and build with stored materials,
 - [Network resources API](https://github.com/rerit33/RunicStorageNetwork/wiki/API) — read available resources and request payment for a machine through three public methods.
 - [Example consumer and test instructions](https://github.com/rerit33/RunicStorageNetwork/tree/main/examples/ApiTestMod)
 
-The API and access to unloaded networks are experimental, disabled by default, and may cause errors. The API is available starting with version **0.8.8**.
+The API and access to unloaded networks are experimental and may cause errors. They are enabled by default for new configurations from **1.0**; existing settings are kept. The API is available starting with version **0.8.8**.
 
 [Releases](https://github.com/rerit33/RunicStorageNetwork/releases) · [Thunderstore](https://thunderstore.io/c/valheim/p/Rerit/RunicStorageNetwork/) · [Hexium](https://valheim.hexium.gg/mods/Rerit/RunicStorageNetwork)

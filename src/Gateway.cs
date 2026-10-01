@@ -16,15 +16,16 @@ namespace RunicStorageNetwork {
    string state=Status();if(visualState==state)return;visualState=state;
    foreach(var r in glow){r.GetPropertyBlock(block);block.SetFloat("_EmissionStrength",r.sharedMaterial.GetFloat("_EmissionStrength")*(state=="connected"?1:.12f));r.SetPropertyBlock(block);}
   }
-  string Status()=>!Plugin.Enabled?"disabled":!UnloadedNetworks.Enabled?"gateway_experimental":Topology.Graph.GatewayStates.TryGetValue(Id,out var state)?state:"disconnected";
+  string Status()=>!ContentSettings.GatewayEnabled?"content_disabled":!Plugin.Enabled?"disabled":!UnloadedNetworks.Enabled?"gateway_experimental":Topology.Graph.GatewayStates.TryGetValue(Id,out var state)?state:"disconnected";
   public string GetHoverName()=>RsnLocalization.Text("gateway_name");
   public float GetHoverOffset()=>1.5f;
   public string GetHoverText(){
    if(!Valid)return GetHoverName();if(hover!=null&&hoverRevision==Topology.DisplayRevision&&Time.unscaledTime<nextHover)return hover;
+   if(!ContentSettings.GatewayEnabled)return GetHoverName()+"\n"+RsnLocalization.Text("content_disabled");
    nextHover=Time.unscaledTime+.25f;if(UnloadedNetworks.Requested&&Player.m_localPlayer)UnloadedMultiplayer.Touch(transform.position,Player.m_localPlayer.GetPlayerID());Topology.Refresh();hoverRevision=Topology.DisplayRevision;
    string tag=GetText();hover=GetHoverName()+(tag.Length>0?"\n"+RsnLocalization.Text("gateway_link",tag):"")+"\n"+RsnLocalization.Text(Status())+"\n"+Localization.instance.Localize("[<color=yellow><b>$KEY_Use</b></color>] ")+RsnLocalization.Text("gateway_edit");return hover;
   }
-  bool CanEdit(Player p)=>Valid&&p&&p==Player.m_localPlayer&&!p.IsDead()&&Vector3.Distance(p.transform.position,transform.position)<=5&&Access.Ward(transform.position,p.GetPlayerID());
+  bool CanEdit(Player p)=>ContentSettings.GatewayEnabled&&Valid&&p&&p==Player.m_localPlayer&&!p.IsDead()&&Vector3.Distance(p.transform.position,transform.position)<=5&&Access.Ward(transform.position,p.GetPlayerID());
   public bool Interact(Humanoid user,bool hold,bool alt){if(hold||!(user is Player p)||!CanEdit(p))return false;TextInput.instance.RequestText(this,RsnLocalization.Text("gateway_tag_input"),NetworkLabels.MaxLength);return true;}
   public bool UseItem(Humanoid user,ItemDrop.ItemData item)=>false;
   public string GetText()=>Valid?NetworkLabels.Normalize(View.GetZDO().GetString(TagKey,"")):"";

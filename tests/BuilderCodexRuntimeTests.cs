@@ -30,6 +30,7 @@ class MessageHud {public enum MessageType {TopLeft}}
 class CraftingStation:Component {internal bool m_upgrader;}
 class PieceTable:UnityEngine.Object {}
 namespace RunicStorageNetwork {
+ static class ContentSettings {internal static bool BuilderEnabled=true;}
  static class BuilderCodexItem {internal const string PrefabName="RSN_RunicBuilderCodex";}
  class NetworkMember:UnityEngine.Object {internal string SavedNetwork;}
  class Core:Component {internal bool Valid=true;internal string Label="";internal NetworkMember Member=new NetworkMember();public override T GetComponent<T>()=>Member as T??base.GetComponent<T>();internal static Vector3 OrdinaryPoint;internal static Core Choose(Vector3 point,long actor){OrdinaryPoint=point;return Topology.Root;}}
@@ -60,9 +61,10 @@ static class BuilderCodexRuntimeTests {
  static void Test(string name,Action body){
   player=new Player();player.View.Data.m_uid=new ZDOID{Id="actor"};Player.m_localPlayer=player;core=new Core{Label="Workshop"};core.Member.SavedNetwork="saved-A";Topology.Root=core;
   Topology.Graph=NetworkGraph.Automatic(new[]{new NetworkNode{Id="new-core-id",Network="saved-A",Root=true,Confirmed=true,Storage=20,Supply=20}},50);
-  Topology.Refreshes=Topology.Selections=0;Topology.SelectedBinding=null;Access.Allowed=Plugin.Enabled=Actions.Tool=true;Actions.Busy=Transport.Busy=Transport.ItemBusy=false;ZDOMan.instance=new ZDOMan();book=Book();body();passed++;Console.WriteLine("PASS builder runtime "+name);
+  Topology.Refreshes=Topology.Selections=0;Topology.SelectedBinding=null;ContentSettings.BuilderEnabled=Access.Allowed=Plugin.Enabled=Actions.Tool=true;Actions.Busy=Transport.Busy=Transport.ItemBusy=false;ZDOMan.instance=new ZDOMan();book=Book();body();passed++;Console.WriteLine("PASS builder runtime "+name);
  }
  public static int Main(){try{
+  Test("disabled equipment grants no local or remote range and keeps the saved book binding",()=>{BuilderCodex.Use(core,player,book);Equip(book);ContentSettings.BuilderEnabled=false;Check(BuilderCodex.Binding(player)==null&&BuilderCodex.RemoteBinding(player.View.Data)==null,"disabled accessory grants range");Check(book.m_customData[BuilderCodex.BindingKey]=="saved-A"&&player.Inventory.ContainsItem(book),"saved item or binding removed");core.Member.SavedNetwork="saved-B";BuilderCodex.Use(core,player,book);Check(book.m_customData[BuilderCodex.BindingKey]=="saved-A","disabled book rebound");ContentSettings.BuilderEnabled=true;Check(BuilderCodex.Binding(player)=="saved-A"&&BuilderCodex.RemoteBinding(player.View.Data)=="saved-A","re-enabled accessory lost its binding");});
   Test("using book stores persistent core identity and display name on that item",()=>{Check(BuilderCodex.Use(core,player,book),"use not handled");Check(book.m_customData[BuilderCodex.BindingKey]=="saved-A"&&book.m_customData[BuilderCodex.NameKey]=="Workshop"&&player.Inventory.Changes==1,"binding not saved on item");Check(!book.m_equipped&&player.Inventory.ContainsItem(book),"binding consumed/equipped book");});
   Test("using a different core rebinds only this copy",()=>{var other=Book("saved-A");BuilderCodex.Use(core,player,book);core.Member.SavedNetwork="saved-B";core.Label="Harbour";BuilderCodex.Use(core,player,book);Check(book.m_customData[BuilderCodex.BindingKey]=="saved-B"&&other.m_customData[BuilderCodex.BindingKey]=="saved-A","copies share binding");});
   Test("ordinary crafting codex is not intercepted",()=>{book.m_dropPrefab.name="RSN_RunicCodex";Check(!BuilderCodex.Use(core,player,book)&&book.m_customData.Count==0,"ordinary ingredient book bound");});

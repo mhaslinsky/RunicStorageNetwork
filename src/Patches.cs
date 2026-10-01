@@ -58,7 +58,7 @@ namespace RunicStorageNetwork {
    var preview=ghost&&ghost.activeInHierarchy?ghost.GetComponent<RelayPresentation>():null;
    if(preview&&preview.PlacementText!=null)__instance.m_pieceDescription.text=preview.PlacementText;
   }
-  static bool Craft(InventoryGui __instance,Player player)=>Actions.Craft(__instance,player);
+  static bool Craft(InventoryGui __instance,Player player)=>ContentSettings.AllowsRecipe(R.Get<Recipe>(__instance,"m_craftRecipe"))&&Actions.Craft(__instance,player);
   static void CraftOpened(InventoryGui __instance)=>CraftOverview.Open(__instance,Player.m_localPlayer);
   static void CraftClosed(){CraftCancelled();CraftOverview.Clear();}
   static bool CraftPressed(InventoryGui __instance)=>CraftPreparation.Press(__instance);
@@ -66,7 +66,7 @@ namespace RunicStorageNetwork {
   static void RecipeSelected(InventoryGui __instance,Player player)=>CraftPreparation.Selection(__instance,player);
   static void RecipeUpdated(InventoryGui __instance)=>CraftPreparation.Button(__instance);
   static void CraftCancelled(){CraftPreparation.Cancel();if(Actions.Waiting?.Op.Build==false)Actions.Cancel();}
-  static bool Build(Player __instance,Piece piece,ref bool __result){if(Actions.Build(__instance,piece))return true;__result=false;return false;}
+  static bool Build(Player __instance,Piece piece,ref bool __result){if(ContentSettings.AllowsPiece(piece)&&Actions.Build(__instance,piece))return true;__result=false;return false;}
   static bool Consume(Player __instance)=>Actions.Active==null||Actions.Active.Player!=__instance;
   static bool HaveCraft(Player __instance,Recipe piece,bool discover,int qualityLevel,int amount,ref bool __result){if(discover)return true;if(!Actions.HaveCraft(__instance,piece,qualityLevel,amount,out bool result))return true;__result=result;return false;}
   static bool HaveBuild(Player __instance,Piece piece,Player.RequirementMode mode,ref bool __result){

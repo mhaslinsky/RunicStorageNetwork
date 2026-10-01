@@ -73,7 +73,7 @@ namespace RunicStorageNetwork {
     req=null;
    }else if(op.Build){
     var prefab=ZNetScene.instance.GetPrefab(op.Target);var piece=prefab?prefab.GetComponent<Piece>():null;
-    reason="invalid build piece";if(!piece||!piece.m_enabled||op.Quality!=0||op.Multiplier!=1)return false;
+    reason="invalid build piece";if(!piece||!piece.m_enabled||!ContentSettings.AllowsPiece(piece)||op.Quality!=0||op.Multiplier!=1)return false;
     reason=BuildToolPolicy.Reason(prefab);if(reason!=null)return false;
     reason="free building";if(ZoneSystem.instance.GetGlobalKey(piece.FreeBuildKey()))return false;
     reason="missing build station";
@@ -106,7 +106,8 @@ namespace RunicStorageNetwork {
    reason="ok";return true;
   }
   internal bool TerminalPoint(Vector3 actor,out Vector3 point){
-   point=default;var terminal=Data(op.Station);var prefab=Prefab(terminal);
+   point=default;if(!ContentSettings.TerminalEnabled)return false;
+   var terminal=Data(op.Station);var prefab=Prefab(terminal);
    // Verify the placed stand from synchronized records even outside the host's loaded area.
    if(!prefab||!prefab.GetComponent<StorageCodex>()||terminal.GetLong(ZDOVars.s_creator,0)==0)return false;
    point=terminal.GetPosition();

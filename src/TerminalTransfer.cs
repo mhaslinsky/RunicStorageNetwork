@@ -16,7 +16,7 @@ namespace RunicStorageNetwork {
   internal static bool Contains(string id,string key)=>pending?.Op.Id==id&&pending.Op.Sources.Contains(key);
   internal static void Clear(){pending=null;receipts.Clear();}
   internal static void Cancel(){if(pending!=null)pending.Cancelled=true;}
-  internal static bool CanUse(StorageCodex access,Core core,Player p)=>Plugin.Enabled&&access&&access.Valid&&core&&core.Valid&&p&&p==Player.m_localPlayer&&!p.IsDead()&&
+  internal static bool CanUse(StorageCodex access,Core core,Player p)=>ContentSettings.TerminalEnabled&&Plugin.Enabled&&access&&access.Valid&&core&&core.Valid&&p&&p==Player.m_localPlayer&&!p.IsDead()&&
    Vector3.Distance(access.transform.position,p.transform.position)<=UseDistance&&Access.Ward(access.transform.position,p.GetPlayerID())&&Access.Ward(core.transform.position,p.GetPlayerID())&&Topology.Supplies(core,access.transform.position,p.GetPlayerID());
   internal static bool Requirements(Operation op,out string reason){
    reason="invalid terminal request";

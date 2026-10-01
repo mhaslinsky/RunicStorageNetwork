@@ -12,7 +12,7 @@ using Jotunn.Utils;
 using UnityEngine;
 
 namespace RunicStorageNetwork {
- [BepInPlugin(Guid, "Runic Storage Network", "0.9.0")]
+ [BepInPlugin(Guid, "Runic Storage Network", "1.0.0")]
  [BepInDependency("com.jotunn.jotunn", "2.30.2")]
  [BepInDependency("com.maxsch.valheim.MultiUserChest",BepInDependency.DependencyFlags.SoftDependency)]
  [NetworkCompatibility(CompatibilityLevel.EveryoneMustHaveMod,VersionStrictness.Patch)]
@@ -40,7 +40,8 @@ namespace RunicStorageNetwork {
   void Awake(){
    Log=Logger;
    Supply=Config.Bind("Network","SupplyEnabled",true,new ConfigDescription("Enable supply; registered building remains available.",null,new ConfigurationManagerAttributes{IsAdminOnly=true}));
-   ExperimentalUnloadedNetworks=Config.Bind("Experimental","ExperimentalUnloadedNetworks",false,"EXPERIMENTAL: allow networks and eligible storage to work outside the player's loaded area. For multiplayer, enable on the server and all clients using the same mod version. May cause errors, including inventory problems. Back up your world before testing. Requires a full restart of the game or dedicated server after changing. Default: disabled. / ЭКСПЕРИМЕНТАЛЬНО: работа сети вне области загрузки игрока. Для мультиплеера включите на сервере и у всех игроков с одинаковой версией мода. Возможны ошибки, в том числе с инвентарём. Сделайте резервную копию мира. После изменения полностью перезапустите игру или выделенный сервер. По умолчанию выключено.");
+   ExperimentalUnloadedNetworks=Config.Bind("Experimental","ExperimentalUnloadedNetworks",true,"EXPERIMENTAL: allow networks and eligible storage to work outside the player's loaded area. Required for Runic Gateway links and the mod API. For multiplayer, enable on the server and all clients using the same mod version. May cause errors, including inventory problems. Back up your world before testing. Requires a full restart after changing. Default: enabled; existing saved values are kept. / ЭКСПЕРИМЕНТАЛЬНО: работа сети вне области загрузки игрока. Требуется для связей Рунического моста и API. Для мультиплеера включите на сервере и у всех игроков с одинаковой версией мода. Возможны ошибки, в том числе с инвентарём. Сделайте резервную копию мира. После изменения полностью перезапустите игру или выделенный сервер. По умолчанию включено; сохранённое ранее значение не меняется.");
+   ContentSettings.Bind(Config);
    StorageRadius=Number("StorageRadius",20,1,100);SupplyRadius=Number("SupplyRadius",20,1,100);Rescan=Number("RescanIntervalSeconds",2,0.5f,30);
    RelayLink=Number("RelayLinkRange",50,1,100);RelayStorage=Number("RelayStorageRadius",20,1,100);RelaySupply=Number("RelaySupplyRadius",20,1,100);
    RelayLink.SettingChanged+=SettingsChanged;RelayStorage.SettingChanged+=SettingsChanged;RelaySupply.SettingChanged+=SettingsChanged;
@@ -54,7 +55,7 @@ namespace RunicStorageNetwork {
    foreach(var entry in new[]{AllowedBuildTools,DeniedBuildTools,DeniedPieceComponents})entry.SettingChanged+=BuildToolsChanged;
    DebugLogging=Config.Bind("Diagnostics","DebugLogging",false,"Detailed transaction diagnostics without inventory dumps.");
    Supply.SettingChanged+=SettingsChanged;StorageRadius.SettingChanged+=SettingsChanged;SupplyRadius.SettingChanged+=SettingsChanged;Rescan.SettingChanged+=SettingsChanged;
-   Info("0.9.0; Valheim="+global::Version.CurrentVersion+" Unity="+Application.unityVersion+" BepInEx="+typeof(BaseUnityPlugin).Assembly.GetName().Version+" Jotunn="+typeof(PieceManager).Assembly.GetName().Version);
+   Info("1.0.0; Valheim="+global::Version.CurrentVersion+" Unity="+Application.unityVersion+" BepInEx="+typeof(BaseUnityPlugin).Assembly.GetName().Version+" Jotunn="+typeof(PieceManager).Assembly.GetName().Version);
    RsnLocalization.Add();
    try {
     string path=Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),"Assets","rsn_core_windows");
@@ -82,6 +83,7 @@ namespace RunicStorageNetwork {
     PrefabManager.OnVanillaPrefabsAvailable+=CheckIds;
     harmony=new Harmony(Guid);Patches.Install(harmony);
     if(ExperimentalUnloadedNetworks.Value)UnloadedNetworks.Install();
+    ContentSettings.Attach(terminalPrefab,gatewayPrefab);
     gameObject.AddComponent<Transport>();
     if(UnloadedNetworks.Installed)gameObject.AddComponent<ApiRuntime>();
     gameObject.AddComponent<NetworkSystem>();
@@ -151,6 +153,6 @@ namespace RunicStorageNetwork {
    return result;
   }
   static string EffectNames(EffectList effects)=>string.Join(",",Array.ConvertAll(effects.m_effectPrefabs,e=>e.m_prefab.name));
-  void OnDestroy(){PrefabManager.OnVanillaPrefabsAvailable-=CheckIds;Supply.SettingChanged-=SettingsChanged;StorageRadius.SettingChanged-=SettingsChanged;SupplyRadius.SettingChanged-=SettingsChanged;Rescan.SettingChanged-=SettingsChanged;RelayLink.SettingChanged-=SettingsChanged;RelayStorage.SettingChanged-=SettingsChanged;RelaySupply.SettingChanged-=SettingsChanged;foreach(var entry in new[]{AllowedContainers,DeniedContainers,DeniedComponents})if(entry!=null)entry.SettingChanged-=ContainersChanged;foreach(var entry in new[]{AllowedBuildTools,DeniedBuildTools,DeniedPieceComponents})if(entry!=null)entry.SettingChanged-=BuildToolsChanged;if(UnloadedNetworks.Installed)UnloadedNetworks.Uninstall();harmony?.UnpatchSelf();}
+  void OnDestroy(){ContentSettings.Unbind();PrefabManager.OnVanillaPrefabsAvailable-=CheckIds;Supply.SettingChanged-=SettingsChanged;StorageRadius.SettingChanged-=SettingsChanged;SupplyRadius.SettingChanged-=SettingsChanged;Rescan.SettingChanged-=SettingsChanged;RelayLink.SettingChanged-=SettingsChanged;RelayStorage.SettingChanged-=SettingsChanged;RelaySupply.SettingChanged-=SettingsChanged;foreach(var entry in new[]{AllowedContainers,DeniedContainers,DeniedComponents})if(entry!=null)entry.SettingChanged-=ContainersChanged;foreach(var entry in new[]{AllowedBuildTools,DeniedBuildTools,DeniedPieceComponents})if(entry!=null)entry.SettingChanged-=BuildToolsChanged;if(UnloadedNetworks.Installed)UnloadedNetworks.Uninstall();harmony?.UnpatchSelf();}
  }
 }
