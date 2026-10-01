@@ -23,7 +23,7 @@ namespace RunicStorage.Build {
    public bool preservedGeometryAndNormals,crystalUVPreserved,engravingPreserved=true,nativeAssetsPersisted=false;
    public string stoneMaterial="stone_wall_2x1 / stone_mat";
    public float stoneNormalStrength=.40f;
-   public bool stoneSurfaceRefined=true,otherGeometryPreserved=true;
+   public bool stoneSurfaceRefined=true,backBannerSymbolsAdded=true;
    public GatewayStoneFinish.Result stoneFinish;
    public List<string> bindings=new List<string>();
    public List<string> meshes=new List<string>();
@@ -79,6 +79,7 @@ namespace RunicStorage.Build {
    PrefabUtility.UnpackPrefabInstance(source,PrefabUnpackMode.Completely,InteractionMode.AutomatedAction);
    Check(root.GetComponentsInChildren<MeshFilter>().Sum(f=>f.sharedMesh.triangles.Length/3)==6163,"Source v10 triangle count changed");
    Results.stoneFinish=GatewayStoneFinish.Apply(root);
+   AddBannerBack(root);
    var renderers=root.GetComponentsInChildren<MeshRenderer>();
    Check(renderers.Length==10,"Unexpected renderer count");var bounds=renderers[0].bounds;
    foreach(var renderer in renderers){
@@ -90,7 +91,7 @@ namespace RunicStorage.Build {
     Results.meshes.Add(renderer.name+": "+mesh.vertexCount+" vertices, "+mesh.triangles.Length/3+" triangles, bounds "+renderer.bounds);
    }
    Results.triangles=root.GetComponentsInChildren<MeshFilter>().Sum(f=>f.sharedMesh.triangles.Length/3);Results.renderers=renderers.Length;Results.size=bounds.size;
-   Check(Results.triangles==4223+Results.stoneFinish.finishedTriangles,"Unexpected non-stone geometry change");
+   Check(Results.triangles==4613+Results.stoneFinish.finishedTriangles,"Unexpected non-stone geometry change");
    Check(Vector3.Distance(bounds.size,new Vector3(3.1f,3.5f,.889746f))<.025f&&Mathf.Abs(bounds.min.y)<.001f,"Unexpected import axes, size or origin");
    Check(root.GetComponentsInChildren<MonoBehaviour>().Length==0&&root.GetComponentsInChildren<Collider>().Length==0,"Preview must remain visual only");
    var importedCore=source.GetComponentsInChildren<MeshFilter>().Single(f=>f.name=="RG_Core").sharedMesh;
@@ -99,6 +100,53 @@ namespace RunicStorage.Build {
    // Only original authored materials are persisted. Native game assets stay in memory.
 
    return root;
+  }
+  static void AddBannerBack(GameObject root){
+   var cloth=root.GetComponentsInChildren<MeshFilter>().Single(f=>f.name=="RG_Banners");
+   var symbols=root.GetComponentsInChildren<MeshFilter>().Single(f=>f.name=="RG_BannerSymbols");
+   var source=symbols.sharedMesh;var p=source.vertices;var n=source.normals;var t=source.triangles;
+   Check(t.Length/3==390&&n.Length==p.Length,"Unexpected authored banner symbols");
+   var clothPoints=cloth.sharedMesh.vertices.Select(cloth.transform.TransformPoint).ToArray();var clothTriangles=cloth.sharedMesh.triangles;
+   var vertices=new Vector3[p.Length*2];var normals=new Vector3[n.Length*2];var triangles=new int[t.Length*2];
+   Array.Copy(p,vertices,p.Length);Array.Copy(n,normals,n.Length);Array.Copy(t,triangles,t.Length);
+   for(int i=0;i<p.Length;i++){
+    var point=symbols.transform.TransformPoint(p[i]);
+    Check(BannerSurface(point,clothPoints,clothTriangles,out float height,out Vector3 normal),"Banner symbol lies outside cloth");
+    float separation=height-point.z;
+    Check(separation>.0001f&&separation<.004f,"Banner front symbol spacing changed: "+separation);
+    // Reflect the overlay across the folded cloth at the same XY location.
+    // Flipping the whole mesh across Z=0 would detach it from the folds.
+    point.z=height+separation;vertices[i+p.Length]=symbols.transform.InverseTransformPoint(point);
+    normals[i+n.Length]=symbols.transform.InverseTransformDirection(Vector3.Reflect(symbols.transform.TransformDirection(n[i]),normal)).normalized;
+   }
+   for(int i=0;i<t.Length;i+=3){triangles[t.Length+i]=t[i]+p.Length;triangles[t.Length+i+1]=t[i+2]+p.Length;triangles[t.Length+i+2]=t[i+1]+p.Length;}
+   var mesh=new Mesh{name="RG_BannerSymbols_TwoSided"};mesh.vertices=vertices;mesh.normals=normals;mesh.triangles=triangles;mesh.RecalculateBounds();symbols.sharedMesh=mesh;
+  }
+  static bool BannerSurface(Vector3 p,Vector3[] points,int[] triangles,out float height,out Vector3 normal){
+   for(int i=0;i<triangles.Length;i+=3){
+    var a=points[triangles[i]];var b=points[triangles[i+1]];var c=points[triangles[i+2]];
+    float denominator=(b.y-c.y)*(a.x-c.x)+(c.x-b.x)*(a.y-c.y);
+    if(Mathf.Abs(denominator)<1e-9f)continue;
+    float u=((b.y-c.y)*(p.x-c.x)+(c.x-b.x)*(p.y-c.y))/denominator;
+    float v=((c.y-a.y)*(p.x-c.x)+(a.x-c.x)*(p.y-c.y))/denominator,w=1-u-v;
+    if(u<-.0001f||v<-.0001f||w<-.0001f)continue;
+    height=u*a.z+v*b.z+w*c.z;normal=Vector3.Cross(b-a,c-a).normalized;return true;
+   }
+   height=0;normal=Vector3.zero;return false;
+  }
+  public static void ValidateBannerSides(GameObject root){
+   var cloth=root.GetComponentsInChildren<MeshFilter>().Single(f=>f.name=="RG_Banners");
+   var symbols=root.GetComponentsInChildren<MeshFilter>().Single(f=>f.name=="RG_BannerSymbols");
+   var c=cloth.sharedMesh.vertices.Select(cloth.transform.TransformPoint).ToArray();var ct=cloth.sharedMesh.triangles;
+   var p=symbols.sharedMesh.vertices.Select(symbols.transform.TransformPoint).ToArray();var t=symbols.sharedMesh.triangles;
+   Check(t.Length==780*3,"Both banner faces must have a complete symbol");
+   int half=t.Length/2;
+   for(int i=0;i<half;i+=3)for(int corner=0;corner<3;corner++){
+    var front=p[t[i+corner]];var back=p[t[half+i+(corner==0?0:3-corner)]];
+    Check(Mathf.Abs(front.x-back.x)<1e-6f&&Mathf.Abs(front.y-back.y)<1e-6f,"Back banner symbol shifted");
+    Check(BannerSurface(front,c,ct,out float height,out _),"Banner surface missing");
+    Check(front.z<height-.0001f&&back.z>height+.0001f&&Mathf.Abs(front.z+back.z-2*height)<1e-5f,"Banner symbol intersects or floats away from cloth");
+   }
   }
   static void AddUV(MeshRenderer renderer){
    var filter=renderer.GetComponent<MeshFilter>();var source=filter.sharedMesh;
@@ -172,6 +220,7 @@ namespace RunicStorage.Build {
     Object.DestroyImmediate(mesh);EditorUtility.SetDirty(saved);
    }else{AssetDatabase.CreateAsset(mesh,path);saved=mesh;}
    filter.sharedMesh=saved;
+   if(!AssetDatabase.Contains(source))Object.DestroyImmediate(source);
   }
  }
 }

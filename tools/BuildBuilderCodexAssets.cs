@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Collections.Generic;
 using System.Security.Cryptography;
 using UnityEditor;
 using UnityEngine;
@@ -13,8 +14,58 @@ namespace RunicStorage.Build {
   const string BuilderFbxHash="5c286fe91a81c1bbc00f052ef702bf72536fbc9d13b4f0c0ce6a1d28cc7d0d01";
   // Offsets are in metres inside the attachment. Vanilla preserves its world
   // scale, then resets only the attach_Hips root's local position and rotation.
-  static readonly Vector3 BuilderBeltPosition=new Vector3(.215f,.20f,0);
-  static readonly Quaternion BuilderBeltRotation=Quaternion.Euler(0,-90,0);
+  static readonly Vector3 BuilderBeltPosition=new Vector3(-.195f,.20f,0);
+  static readonly Quaternion BuilderBeltRotation=Quaternion.Euler(0,90,0);
+  const int BuilderBeltTriangles=444;
+  static Mesh SaveBuilderMesh(Mesh mesh,string name){
+   string directory=Root+"/BuilderCodex/Meshes";Directory.CreateDirectory(directory);AssetDatabase.Refresh();
+   string path=directory+"/"+name+".asset";var saved=AssetDatabase.LoadAssetAtPath<Mesh>(path);
+   if(saved){EditorUtility.CopySerialized(mesh,saved);UnityEngine.Object.DestroyImmediate(mesh);EditorUtility.SetDirty(saved);}
+   else{AssetDatabase.CreateAsset(mesh,path);saved=mesh;}return saved;
+  }
+  static void AddBuilderBelt(GameObject root,Dictionary<string,Material> materials){
+   var belt=new GameObject("Belt");belt.transform.SetParent(root.transform,false);
+   var vertices=new List<Vector3>();var triangles=new List<int>();var uv=new List<Vector2>();
+   Action<Vector3,Vector3,Vector3,Vector3> quad=(a,b,c,d)=>{
+    int i=vertices.Count;vertices.AddRange(new[]{a,b,c,d});uv.AddRange(new[]{Vector2.zero,Vector2.right,Vector2.one,Vector2.up});
+    triangles.AddRange(new[]{i,i+1,i+2,i,i+2,i+3});
+   };
+   // A softly squared leather strap passes through both authored loops at the
+   // left hip. It belongs only to attach_Hips, never to the dropped/icon visual.
+   Func<float,float,float,Vector3> ring=(angle,y,inset)=>{
+    float x=Mathf.Cos(angle),z=Mathf.Sin(angle);
+    // Follow the waist on the right, leaving a short flatter section inside
+    // the existing suspension loops on the left.
+    return new Vector3(Mathf.Sign(x)*Mathf.Pow(Mathf.Abs(x),x<0?.35f:1)*(x<0?.201f-inset:.185f-inset),y,z*(.150f-inset));
+   };
+   for(int i=0;i<48;i++){
+    float a=i*Mathf.PI*2/48,b=(i+1)*Mathf.PI*2/48;
+    var lo=ring(a,.181f,0);var hi=ring(a,.219f,0);var nextLo=ring(b,.181f,0);var nextHi=ring(b,.219f,0);
+    var innerLo=ring(a,.181f,.006f);var innerHi=ring(a,.219f,.006f);var nextInnerLo=ring(b,.181f,.006f);var nextInnerHi=ring(b,.219f,.006f);
+    quad(lo,hi,nextHi,nextLo);quad(innerLo,nextInnerLo,nextInnerHi,innerHi);
+    quad(hi,innerHi,nextInnerHi,nextHi);quad(lo,nextLo,nextInnerLo,innerLo);
+   }
+   Action<string,string> finish=(name,material)=>{
+    var mesh=new Mesh{name=name};mesh.SetVertices(vertices);mesh.SetTriangles(triangles,0);mesh.SetUVs(0,uv);mesh.RecalculateNormals();mesh.RecalculateTangents();mesh.RecalculateBounds();
+    var part=new GameObject(name);part.transform.SetParent(belt.transform,false);part.AddComponent<MeshFilter>().sharedMesh=SaveBuilderMesh(mesh,name);
+    var renderer=part.AddComponent<MeshRenderer>();renderer.sharedMaterial=materials[material];renderer.shadowCastingMode=ShadowCastingMode.On;renderer.receiveShadows=true;
+    vertices.Clear();triangles.Clear();uv.Clear();
+   };
+   finish("BeltLeather","RBC_HarnessLeather");
+   Action<Vector3,Vector3> box=(center,size)=>{
+    var l=center-size*.5f;var h=center+size*.5f;
+    var a=new Vector3(l.x,l.y,l.z);var b=new Vector3(h.x,l.y,l.z);var c=new Vector3(h.x,h.y,l.z);var d=new Vector3(l.x,h.y,l.z);
+    var e=new Vector3(l.x,l.y,h.z);var f=new Vector3(h.x,l.y,h.z);var g=new Vector3(h.x,h.y,h.z);var k=new Vector3(l.x,h.y,h.z);
+    quad(a,d,c,b);quad(e,f,g,k);quad(a,e,k,d);quad(b,c,g,f);quad(d,k,g,c);quad(a,b,f,e);
+   };
+   // Small silver frame and pin on the front, matching the book's fittings.
+   box(new Vector3(-.028f,.20f,.155f),new Vector3(.006f,.05f,.009f));
+   box(new Vector3(.028f,.20f,.155f),new Vector3(.006f,.05f,.009f));
+   box(new Vector3(0,.222f,.155f),new Vector3(.05f,.006f,.009f));
+   box(new Vector3(0,.178f,.155f),new Vector3(.05f,.006f,.009f));
+   box(new Vector3(0,.20f,.161f),new Vector3(.052f,.004f,.004f));
+   finish("BeltSilver","RBC_Silver");
+  }
   static Bounds BuilderBounds(GameObject go){
    var rs=go.GetComponentsInChildren<Renderer>();Check(rs.Length>0,"Builder visual empty");
    var bounds=rs[0].bounds;foreach(var r in rs)bounds.Encapsulate(r.bounds);return bounds;
@@ -66,6 +117,7 @@ namespace RunicStorage.Build {
     var equippedRoot=new GameObject("attach_Hips");equippedRoot.transform.SetParent(go.transform,false);
     var equipped=UnityEngine.Object.Instantiate(visual,equippedRoot.transform,false);equipped.name="Book";
     equipped.transform.localPosition=BuilderBeltPosition;equipped.transform.localRotation=BuilderBeltRotation;
+    AddBuilderBelt(equippedRoot,materials);
     equippedRoot.SetActive(false);
     // The floor item lies flat. Keep this transform independent of the belt book.
     visual.transform.localRotation=Quaternion.Euler(90,0,0);
@@ -92,9 +144,11 @@ namespace RunicStorage.Build {
   static void ValidateBuilderVisual(GameObject prefab){
    var floor=prefab.transform.Find("attach");var worn=prefab.transform.Find("attach_Hips");
    Check(floor&&worn&&floor.gameObject.activeSelf&&!worn.gameObject.activeSelf,"Builder attachment visibility invalid");
-   Check(prefab.GetComponentsInChildren<MeshRenderer>().Length==9&&prefab.GetComponentsInChildren<MeshRenderer>(true).Length==18,"Builder double floor visual or missing attachment");
+   Check(prefab.GetComponentsInChildren<MeshRenderer>().Length==9&&prefab.GetComponentsInChildren<MeshRenderer>(true).Length==20,"Builder double floor visual or missing attachment");
+   Check(!floor.Find("Belt")&&worn.Find("Belt"),"Belt must exist only on equipped model");
+   Check(worn.Find("Belt").GetComponentsInChildren<MeshFilter>(true).Sum(f=>f.sharedMesh.triangles.Length/3)==BuilderBeltTriangles,"Belt geometry missing");
    foreach(var root in new[]{floor,worn}){
-    Check(root.GetComponentsInChildren<MeshFilter>(true).Sum(f=>f.sharedMesh.triangles.Length/3)==1389,"Builder geometry changed");
+    Check(root.Find("Book").GetComponentsInChildren<MeshFilter>(true).Sum(f=>f.sharedMesh.triangles.Length/3)==1389,"Builder book geometry changed");
     Check(root.GetComponentsInChildren<Collider>(true).Length==0&&root.GetComponentsInChildren<Rigidbody>(true).Length==0&&root.GetComponentsInChildren<MonoBehaviour>(true).Length==0,"Equipment visual contains behavior/collisions");
    }
    Check(prefab.GetComponentsInChildren<Collider>(true).Length==1&&prefab.GetComponent<BoxCollider>(),"Builder drop collider missing");
@@ -105,7 +159,7 @@ namespace RunicStorage.Build {
    var prefab=bundle.LoadAsset<GameObject>(BuilderAsset);Check(prefab&&bundle.LoadAsset<Sprite>(BuilderIcon),"Builder bundle assets missing");
    ValidateBuilderVisual(prefab);
    PreviewBuilderEquipment(prefab,output);
-   File.WriteAllText(Path.Combine(output,"BuilderCodexAssetReport.json"),"{\"trianglesPerVisual\":1389,\"renderersPerVisual\":9,\"attachment\":\"attach_Hips\",\"slot\":\"Utility\",\"runtimeComponentsInBundle\":false,\"bundleReload\":true,\"nativeGameAssetsBundled\":false,\"gameValidated\":false}");
+   File.WriteAllText(Path.Combine(output,"BuilderCodexAssetReport.json"),"{\"bookTriangles\":1389,\"beltTriangles\":"+BuilderBeltTriangles+",\"droppedRenderers\":9,\"equippedRenderers\":11,\"beltOnlyWhenEquipped\":true,\"side\":\"character left\",\"attachment\":\"attach_Hips\",\"slot\":\"Utility\",\"runtimeComponentsInBundle\":false,\"bundleReload\":true,\"nativeGameAssetsBundled\":false,\"gameValidated\":false}");
   }
   static string[] PreparedAssetNames()=>new[]{Root+"/RSN_NetworkCore.prefab",Root+"/RSN_CoreIcon.png",Root+"/RSN_RunicRelay.prefab",Root+"/RSN_RelayIcon.png",TerminalAsset,TerminalIcon,CodexAsset,CodexIcon,GatewayAsset,GatewayIcon,BuilderAsset,BuilderIcon};
   public static void BuilderCodexBatch(){

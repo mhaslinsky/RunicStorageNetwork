@@ -21,14 +21,18 @@ namespace RunicStorage.Build {
     var worn=UnityEngine.Object.Instantiate(prefab.transform.Find("attach_Hips").gameObject,hips,true);
     worn.SetActive(true);worn.transform.localPosition=Vector3.zero;worn.transform.localRotation=Quaternion.identity;
     Check(Vector3.Distance(worn.transform.lossyScale,Vector3.one)<.0001f,"Bone inherited scale distorts accessory");
-    Check(worn.GetComponentsInChildren<MeshRenderer>().Length==9&&worn.GetComponentsInChildren<Collider>().Length==0,"Equipment visual invalid");
-    var bounds=BuilderBounds(worn);var relative=bounds.center-hips.position;
+    Check(worn.GetComponentsInChildren<MeshRenderer>().Length==11&&worn.GetComponentsInChildren<Collider>().Length==0,"Equipment visual invalid");
+    var book=worn.transform.Find("Book");var belt=worn.transform.Find("Belt");
+    var bounds=BuilderBounds(book.gameObject);var relative=bounds.center-hips.position;
     Check(bounds.size.y>.48f&&bounds.size.y<.51f&&bounds.min.y>.50f&&bounds.max.y<1.30f,"Book belt height/scale invalid: "+bounds);
-    Check(relative.x>.17f&&relative.x<.40f,"Book must hang outside the right hip: "+relative);
+    Check(relative.x<-.17f&&relative.x>-.40f,"Book must hang outside the character's left hip: "+relative);
+    Check(Vector3.Dot(book.forward,Vector3.right)>.99f,"Book front must face out from left hip");
+    var beltBounds=BuilderBounds(belt.gameObject);Check(beltBounds.min.x<-.19f&&beltBounds.max.x>.18f,"Belt must wrap both hips");
     // Verify a rotated/moved rig carries the book, rather than leaving it at the spawn point.
-    var book=worn.transform.Find("Book");var center=hips.InverseTransformPoint(book.position);var rotation=hips.localRotation;
+    var center=hips.InverseTransformPoint(book.position);var beltCenter=hips.InverseTransformPoint(belt.position);var rotation=hips.localRotation;
     hips.localRotation*=Quaternion.Euler(0,35,0);player.transform.position=new Vector3(18,4,-12);
     Check(Vector3.Distance(book.position,hips.TransformPoint(center))<.001f,"Book does not follow rig motion");
+    Check(Vector3.Distance(belt.position,hips.TransformPoint(beltCenter))<.001f,"Belt does not follow rig motion");
     hips.localRotation=rotation;player.transform.position=Vector3.zero;
     skin.BakeMesh(bodyMesh,false);
     var body=new GameObject("Vanilla rig mannequin");body.transform.SetParent(stage.transform,false);
@@ -42,9 +46,9 @@ namespace RunicStorage.Build {
     // Turn the studio subject toward the existing key light; attachment offsets
     // above stay in the actual player coordinate system.
     stage.transform.rotation=Quaternion.Euler(0,180,0);
-    TerminalView(stage,Path.Combine(output,"builder-codex-equipped.png"),new Vector3(-4,1.5f,-6),false,framing:1.08f,ground:true);
-    TerminalView(stage,Path.Combine(output,"builder-codex-equipped-close.png"),new Vector3(-5,1,-4),true,framing:.47f);
-    File.WriteAllText(Path.Combine(output,"BuilderCodexFitReport.json"),"{\"rig\":\"installed vanilla Player\",\"bone\":\"Hips\",\"nativeAttachSequence\":true,\"boneMotionCheck\":true,\"oneVisibleBook\":true,\"worldScale\":1,\"preview\":\"Editor neutral mannequin, not gameplay\",\"animationClippingVerified\":false}");
+    TerminalView(stage,Path.Combine(output,"builder-codex-equipped.png"),new Vector3(4,1.5f,-6),false,framing:1.08f,ground:true,keyYaw:-35);
+    TerminalView(stage,Path.Combine(output,"builder-codex-equipped-close.png"),new Vector3(5,1,-4),true,framing:.47f,keyYaw:-35);
+    File.WriteAllText(Path.Combine(output,"BuilderCodexFitReport.json"),"{\"rig\":\"installed vanilla Player\",\"bone\":\"Hips\",\"nativeAttachSequence\":true,\"boneMotionCheck\":true,\"oneVisibleBook\":true,\"leftHip\":true,\"equippedBelt\":true,\"worldScale\":1,\"preview\":\"Editor neutral mannequin, not gameplay\",\"animationClippingVerified\":false}");
    }finally{
     UnityEngine.Object.DestroyImmediate(stage);UnityEngine.Object.DestroyImmediate(player);UnityEngine.Object.DestroyImmediate(bodyMesh);UnityEngine.Object.DestroyImmediate(bodyMat);
    }

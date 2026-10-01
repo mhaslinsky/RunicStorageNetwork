@@ -17,7 +17,8 @@ namespace RunicStorage.Build {
   }
   static void ValidateGateway(AssetBundle bundle,GameObject source,string output){
    var prefab=bundle.LoadAsset<GameObject>(GatewayAsset);Check(prefab&&prefab.name=="RSN_RunicGateway"&&bundle.LoadAsset<Sprite>(GatewayIcon),"Gateway bundle assets missing");
-   Check(prefab.GetComponentsInChildren<MeshRenderer>().Length==10&&prefab.GetComponentsInChildren<MeshFilter>().Sum(f=>f.sharedMesh.triangles.Length/3)==9069,"Approved v14 geometry changed");
+   Check(prefab.GetComponentsInChildren<MeshRenderer>().Length==10&&prefab.GetComponentsInChildren<MeshFilter>().Sum(f=>f.sharedMesh.triangles.Length/3)==9459,"Gateway geometry or back banner symbols changed");
+   GatewayAssetBuilder.ValidateBannerSides(prefab);
    Check(prefab.GetComponentsInChildren<Collider>().Length==6,"Gateway collider count");
    Check(prefab.GetComponentsInChildren<MonoBehaviour>(true).Length==0&&prefab.GetComponentsInChildren<Light>(true).Length==0&&prefab.GetComponentsInChildren<Camera>(true).Length==0,"Gateway studio/runtime components in visual prefab");
    foreach(var r in prefab.GetComponentsInChildren<MeshRenderer>()){
@@ -37,9 +38,16 @@ namespace RunicStorage.Build {
     var gap=new Ray(new Vector3(.38f,1.85f,-2),Vector3.forward);
     Check(!ghost.GetComponentsInChildren<Collider>().Any(c=>c.Raycast(gap,out _,4)),"Gateway air gap blocked by collision");checks++;
    }finally{UnityEngine.Object.DestroyImmediate(ghost);}
-   File.WriteAllText(Path.Combine(output,"GatewayAssetReport.json"),"{\"approvedAppearance\":\"v14 ordinary stone\",\"triangles\":9069,\"renderers\":10,\"colliders\":6,\"placementChecks\":"+checks+",\"bundleReload\":true,\"nativeGameAssetsBundled\":false}");
+   File.WriteAllText(Path.Combine(output,"GatewayAssetReport.json"),"{\"approvedAppearance\":\"v14 ordinary stone with two-sided banner symbols\",\"triangles\":9459,\"renderers\":10,\"colliders\":6,\"bannerSidesChecked\":true,\"placementChecks\":"+checks+",\"bundleReload\":true,\"nativeGameAssetsBundled\":false}");
    var b=prefab.GetComponentsInChildren<Renderer>().Select(r=>r.bounds).Aggregate((a,c)=>{a.Encapsulate(c);return a;});
    RenderIcon(prefab,b,Path.Combine(output,"gateway-preview.png"),RenderingPath.Forward,768,2.25f,new Vector3(3,1.75f,-7));
+   var rear=UnityEngine.Object.Instantiate(prefab);
+   try{
+    // Photograph the back under the same key light as the front.
+    rear.transform.rotation=Quaternion.Euler(0,180,0);
+    var backBounds=rear.GetComponentsInChildren<Renderer>().Select(r=>r.bounds).Aggregate((a,c)=>{a.Encapsulate(c);return a;});
+    RenderIcon(rear,backBounds,Path.Combine(output,"gateway-back.png"),RenderingPath.Forward,768,2.25f,new Vector3(3,1.75f,-7));
+   }finally{UnityEngine.Object.DestroyImmediate(rear);}
   }
   // Rebuild the new gateway/accessory, retaining prepared core/relay/codex assets
   // in this isolated project. The bundle still contains every mod asset.

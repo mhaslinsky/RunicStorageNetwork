@@ -24,7 +24,7 @@ public static partial class BuildAssets {
   }catch(Exception e){Debug.LogException(e);EditorApplication.Exit(1);}
   finally{if(model)UnityEngine.Object.DestroyImmediate(model);}
  }
- static void TerminalView(GameObject model,string path,Vector3 direction,bool close,bool pedestal=false,bool coverOnly=false,float? framing=null,bool ground=false){
+ static void TerminalView(GameObject model,string path,Vector3 direction,bool close,bool pedestal=false,bool coverOnly=false,float? framing=null,bool ground=false,float keyYaw=15){
   var scene=EditorSceneManager.NewPreviewScene();var copy=UnityEngine.Object.Instantiate(model);
   UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(copy,scene);
   ApplyIconMaterials(copy);
@@ -45,10 +45,10 @@ public static partial class BuildAssets {
   camera.backgroundColor=new Color(.19f,.215f,.23f,1);camera.orthographic=true;camera.orthographicSize=framing??(pedestal?.26f:close?.64f:.99f);
   camera.transform.position=bounds.center+direction;camera.transform.LookAt(bounds.center);camera.nearClipPlane=.03f;camera.farClipPlane=50;camera.renderingPath=RenderingPath.Forward;
   var keyObj=new GameObject("Key");UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(keyObj,scene);
-  var key=keyObj.AddComponent<Light>();key.type=LightType.Directional;key.intensity=1.8f;key.color=new Color(1,.92f,.82f);key.transform.rotation=Quaternion.Euler(45,15,0);
+  var key=keyObj.AddComponent<Light>();key.type=LightType.Directional;key.intensity=1.8f;key.color=new Color(1,.92f,.82f);key.transform.rotation=Quaternion.Euler(45,keyYaw,0);
   key.shadows=LightShadows.Soft;key.shadowStrength=.8f;key.shadowBias=.02f;key.shadowNormalBias=.15f;key.shadowResolution=LightShadowResolution.VeryHigh;key.renderMode=LightRenderMode.ForcePixel;
   var fillObj=new GameObject("Fill");UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(fillObj,scene);
-  var fill=fillObj.AddComponent<Light>();fill.type=LightType.Directional;fill.intensity=.25f;fill.color=new Color(.85f,.9f,1);fill.transform.rotation=Quaternion.Euler(25,140,0);
+  var fill=fillObj.AddComponent<Light>();fill.type=LightType.Directional;fill.intensity=.25f;fill.color=new Color(.85f,.9f,1);fill.transform.rotation=Quaternion.Euler(25,keyYaw+125,0);
   QualitySettings.shadows=ShadowQuality.All;QualitySettings.shadowResolution=ShadowResolution.VeryHigh;QualitySettings.shadowDistance=20;QualitySettings.shadowCascades=2;
   Shader.SetGlobalVector("_SunDir",-key.transform.forward);Shader.SetGlobalColor("_SunColor",key.color*key.intensity);Shader.SetGlobalColor("_AmbientColor",new Color(.25f,.25f,.25f,1));Shader.SetGlobalFloat("_Wet",0);
   Check(Unsupported.SetOverrideLightingSettings(scene),"Cannot configure preview lighting");
