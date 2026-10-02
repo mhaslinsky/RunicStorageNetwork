@@ -5,6 +5,7 @@ Connect storage across your Valheim base, craft and build with stored materials,
 ## For players and server administrators
 
 - [Getting started, recipes and compatibility](https://github.com/rerit33/RunicStorageNetwork#english)
+- [Buildings, ranges and recipes](https://github.com/rerit33/RunicStorageNetwork/wiki/Buildings-and-recipes) · [Постройки, радиусы и рецепты (RU)](https://github.com/rerit33/RunicStorageNetwork/wiki/Buildings-and-recipes-RU) — a compact reference for 1.0.
 - [Configuration](https://github.com/rerit33/RunicStorageNetwork/wiki/Configuration) — ranges, container and tool filters, diagnostics, and experimental distant storage.
 - [Настройки на русском](https://github.com/rerit33/RunicStorageNetwork/wiki/Configuration-RU)
 - [Report a bug](https://github.com/rerit33/RunicStorageNetwork/issues/new/choose)

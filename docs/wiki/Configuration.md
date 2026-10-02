@@ -2,6 +2,8 @@
 
 For Runic Storage Network **1.0.0**. [Русская версия](https://github.com/rerit33/RunicStorageNetwork/wiki/Configuration-RU).
 
+For each building's purpose, ranges and materials, see [Buildings, ranges and recipes](https://github.com/rerit33/RunicStorageNetwork/wiki/Buildings-and-recipes).
+
 The configuration file is `BepInEx/config/local.runicstoragenetwork.cfg`. It is created after the mod first starts. With a mod manager, use the file inside the profile you actually play with.
 
 `Network`, `Containers`, `Building` and `Content` settings are administrator-only in multiplayer and synchronized by Jötunn. The server decides these settings for the session. Changes applied through the configuration system take effect during play; editing a file on disk alone does not guarantee a live reload. Editing while the game/server is stopped and then starting it is the simplest way to apply file changes.

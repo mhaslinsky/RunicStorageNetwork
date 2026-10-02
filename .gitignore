@@ -8,9 +8,7 @@
 !/CONTRIBUTING.md
 !/BUILDING.md
 !/PUBLISHING.md
-!/API_PROPOSAL_RU.md
 !/API.md
-!/API_IMPLEMENTATION_RU.md
 !/docs/
 /docs/*
 !/docs/wiki/
@@ -91,7 +89,6 @@
 !/model-sources/gateway/*.json
 !/model-sources/gateway/*.png
 !/model-sources/gateway/README.md
-!/GATEWAY_IMPLEMENTATION_RU.md
 !/tools/ExportBuilderCodex.py
 !/tools/BuildBuilderCodexAssets.cs
 !/tools/PreviewBuilderCodex.cs

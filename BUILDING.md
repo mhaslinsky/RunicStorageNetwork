@@ -1,21 +1,21 @@
 # Building from source
 
-This repository contains the mod's C# source, isolated logic tests and DLL compilation script. The separate model-authoring projects and the full asset/release pipeline are not included. Source snapshots and Editor integrations for the upcoming Storage Codex stand and closed Runic Codex item visual are available in `model-sources/terminal`, `model-sources/codex`, `tools/BuildTerminalAssets.cs` and `tools/BuildCodexAssets.cs`. Compiling the DLL does **not** create an installable mod package: the matching release's `Assets/rsn_core_windows` bundle is also required.
+This repository contains the mod's C# source, isolated tests, build scripts, model source snapshots and Editor integrations. The complete Unity asset project and original model-authoring projects are separate. The Storage Codex, Runic Codex, Runic Gateway and Builder's Codex snapshots are in `model-sources/`, with preparation notes in each folder's README. Compiling the DLL does **not** create an installable mod package: the matching `Assets/rsn_core_windows` bundle is also required.
 
 `tools/BuildIcons.cs` and `tools/IconSilhouette.shader` preserve the approved icon-rendering recipe used by the separate Unity asset pipeline. They are Editor sources, not plugin sources or a standalone asset build; they require the author's asset project and local game materials. The mod icon uses the same render as the core's build-menu icon.
 
 ## Runic Gateway local package
 
-Gateway source snapshots and its approved ordinary-stone finish are in `model-sources/gateway`, `tools/GatewayAssetBuilder.cs`, `tools/GatewayStoneFinish.cs` and `src/GatewayMaterials.cs`. The new DLL requires the new bundle; the old 0.8.1 bundle does not contain the gateway.
+Gateway source snapshots and its approved ordinary-stone finish are in `model-sources/gateway`, `tools/GatewayAssetBuilder.cs`, `tools/GatewayStoneFinish.cs` and `src/GatewayMaterials.cs`. The 1.0 DLL requires a bundle containing all four build pieces and both codex items.
 
 For the author's prepared, separate `UnityBuild` project (with the existing core, relay and codex assets and Editor helpers), run `tools/BuildGatewayPreview.ps1`. It compiles the plugin, runs the isolated tests, rebuilds the complete bundle in Unity 6000.0.75f1 without Play Mode, validates the gateway model/placement, and writes a six-file local test ZIP in `dist`. It does not install or publish anything. A plain source checkout alone cannot reconstruct the other authoring assets. The older asset-reuse scripts refuse to package this source with the obsolete bundle.
 
-Gateway tests cover pairing, independent networks, cycles, local versus distant resources, alternate ordinary routes and cached topology invalidation. Runtime fixtures use game stand-ins and do not establish in-game multiplayer correctness. See `GATEWAY_IMPLEMENTATION_RU.md` for the manual test checklist.
+Gateway tests cover pairing, independent networks, cycles, local versus distant resources, alternate ordinary routes and cached topology invalidation. Runtime fixtures use game stand-ins and do not establish in-game multiplayer correctness. See [Gateway gameplay checks](#gateway-gameplay-checks) for manual validation.
 
 ## Requirements
 
 - Windows and PowerShell 5.1 or newer.
-- Unity Editor **6000.0.75f1**, including its bundled C# compiler and .NET Framework reference assemblies. The commands below do not open the Unity Editor or launch Valheim.
+- Unity Editor **6000.0.75f1**, including its bundled C# compiler and .NET Framework reference assemblies. DLL compilation and isolated tests use the compiler only; asset builds run the Editor in batch mode without Play Mode. None of these scripts launches Valheim.
 - To build the plugin: your local Valheim installation and a BepInEx profile containing Jötunn. The current source targets Valheim **1.0.15**, BepInEx **5.4.23.5** and Jötunn **2.30.2**.
 
 Game and dependency DLLs are local compilation references. They are not stored in this repository or copied to the output.
@@ -51,15 +51,13 @@ The same command also runs `BuildToolRuntimeTests.exe`. It compiles the producti
 
 It also runs `RecipeRuntimeTests.exe` against the production recipe index and transaction requirement-selection methods. This covers live recipe changes, duplicate names, different registration orders across peers, stale operations and rate-limited diagnostics. These tests use stand-ins; they do not establish compatibility with a mod's custom crafting callbacks.
 
-Recipe requests now carry a versioned content key in the existing target field. All participating clients and the server need this implementation for network crafting; older name-only requests are rejected. Use matching builds on all peers.
+Recipe requests carry a versioned content key in the target field, and ingredient-inspection replies include the owner's storage revision. Use matching builds on all clients and the server.
 
 The command also runs `StorageIndexRuntimeTests.exe`, `CraftInspectionRuntimeTests.exe` and `CraftPreparationRuntimeTests.exe` against production code with game stand-ins. They cover incremental updates across 95 containers, inventory events and synchronized revisions, owner changes, delayed replies, reservations acquired only on click, cancellation, repeated clicks and recipe checks before starting a craft. Pure index tests also cover queries with 5,000 unrelated sources. These are correctness checks, not in-game performance measurements.
 
-Starting with 0.6.0, ingredient-inspection replies include the owner's storage revision. Update all clients and the server together; the older reply format is incompatible.
+Interact with the Storage Codex inside core/relay supply coverage to open storage; interacting with a core renames the network. For withdrawals, the operation `Station` field identifies the placed Storage Codex while `Core` identifies its storage network. The coordinator validates the stand's synchronized record, creator, distance, ward and supply coverage; it does not require a loaded stand instance on the host.
 
-The `feature/core-terminal` branch adds the Storage Codex access point and a Runic Codex item crafted at a forge. Interact with the Storage Codex inside core/relay supply coverage to open storage; interacting with a core renames the network. For withdrawals, the existing operation `Station` field identifies the placed Storage Codex while `Core` identifies its storage network. The coordinator validates the stand's synchronized record, creator, distance, ward and supply coverage; it does not require a loaded stand instance on the host.
-
-`TerminalRuntimeTests.exe` exercises production delivery/receipt handlers and the extracted coordinator access-point check against stand-ins: custom item data, quantity/quality checks, duplicate messages, cancellation, stand destruction, lost coverage, wards, different open stands, full inventories and partial-insertion rollback. These do not verify real multiplayer or item registration. Use the matching build on all peers. No release publication is part of this branch's local build.
+`TerminalRuntimeTests.exe` exercises production delivery/receipt handlers and the extracted coordinator access-point check against stand-ins: custom item data, quantity/quality checks, duplicate messages, cancellation, stand destruction, lost coverage, wards, different open stands, full inventories and partial-insertion rollback. These do not verify real multiplayer or item registration.
 
 ## Save local paths
 
@@ -77,17 +75,11 @@ The script loads these defaults; explicit parameters take priority. The `.local`
 
 `RunicStorageNetwork.csproj` is available for IDE use. Supply `EditorData`, `ValheimManaged` and `BepInExPath` as MSBuild properties or in an ignored `.local\Build.props` file. The tested compilation path is `tools\Compile.ps1`.
 
-## Unloaded-network experiment
+## Unloaded networks
 
-The optional unloaded-network feature defaults to enabled for new configurations from 1.0. Existing settings are retained. For a current package with all content, use the 1.0 candidate build below. The older asset-reuse script remains available for isolated unloaded-network work:
+The optional unloaded-network feature defaults to enabled for new configurations from 1.0. Existing settings are retained. For a current package with all content, use the [1.0 candidate build](#local-10-candidate) below. `BuildUnloadedExperiment.ps1` and `BuildApiPreview.ps1` reuse old assets and deliberately refuse the current source; use `BuildGatewayPreview.ps1` instead. `UnloadedNetworkRuntimeTests.exe` uses game stand-ins to exercise cold-start discovery, container eligibility, deferred work, live-instance handover, reservations and inventory save guards.
 
-```powershell
-.\tools\BuildUnloadedExperiment.ps1 -BasePackage 'C:\Path\To\RunicStorageNetwork-0.8.1.zip'
-```
-
-This compiles the DLL, runs isolated tests, reuses the verified 0.8.1 assets and validates a six-file local package at `dist/RunicStorageNetwork-<version>-unloaded-experiment.zip`, using the manifest version. It neither installs nor publishes the package. `UnloadedNetworkRuntimeTests.exe` uses game stand-ins to exercise cold-start discovery, container eligibility, deferred work, live-instance handover, reservations and inventory save guards.
-
-Optional game patches and the unloaded inventory scheduler are installed only when the setting is enabled at plugin startup. They use a separate Harmony owner; a failed installation rolls back its patches and restores ordinary source lookup without disabling normal supply. With the experiment off, craft proposals use the original registered-member list and container discovery uses the original traversal. The ordinary inventory update routine matches the stable 0.8.1 implementation. Only a passive protocol refusal remains registered on an opted-out server so an opted-in client can fall back without trying to inspect remote inventories.
+Optional game patches and the unloaded inventory scheduler are installed only when the setting is enabled at plugin startup. They use a separate Harmony owner; a failed installation rolls back its patches and restores ordinary source lookup without disabling normal supply. With the option off, craft proposals use registered live members and ordinary container discovery. Only a passive protocol refusal remains registered on an opted-out server so an opted-in client can fall back without trying to inspect remote inventories.
 
 For an installed experiment, `ZNetScene.Awake` attaches the new world, then saved records are indexed after `ZNet.Start` completes the world load. Both old and chunked saves are loaded by that method; scanning in scene Awake is too early. Retained live containers use their existing inventory even if their surrounding zone is unloaded, provided the scene instance and indexed world record still match. Normal eligibility, placement, ward and reservation checks still apply.
 
@@ -113,9 +105,19 @@ This runs the isolated tests, API consumer checks, Unity Editor asset checks and
 
 The `[Content]` switches are synchronized from the server and keep all prefabs registered. Test disabling and re-enabling each switch with existing objects and inventory items, including during a withdrawal. Runic Gateway also requires experimental distant storage; the other two switches are independent of it. Configuration tests use stand-ins and do not replace in-game or multiplayer checks.
 
-## Repository contents
+## Gateway gameplay checks
 
-### Builder's Codex local preview
+- Place and dismantle a gateway; check ingredient discovery, materials, sound and exactly one return of building materials. Pair a gateway near the core with a distant one, then extend the far side with relays and check local coverage and connection glow.
+- Compare local and distant wood/iron in crafting, construction, the Storage Codex and an API consumer. Add and remove an ordinary relay route, then change the world's portal rules: restricted items should cross only through an allowed route, while local items remain available.
+- Break and restore a relay path; destroy and rebuild a gateway with the same name. The connection should recover without renaming the surviving gateway or duplicating resources.
+- Rename or clear one gateway, add a third with the same name, then resolve the conflict. Test multiple pairs and cycles without duplicated counts. Already bound gateways must not merge independent networks; an unbound gateway beside a second core must not join the cores when paired to the first network.
+- Enter the world near the distant gateway without visiting the core, access its storage, then save and reconnect. Names and bindings should persist, including networks with several cores. Change ward permissions while browsing and verify restricted paths and sources become unavailable.
+- On a dedicated server, have two players craft and withdraw at opposite ends. Open a source chest during another player's request, then close it. Break or rename the link during payment and verify there is no free result or duplicate debit and that later requests recover.
+- Disable distant storage on all peers and restart; then separately test the content switches. Gateways should stop supplying while ordinary core/relay networks remain usable. On a large base, compare first and repeated access times and FPS, including with modded storage.
+
+## Builder's Codex
+
+### Local preview
 
 With the separate Unity build project already prepared, run:
 
@@ -131,7 +133,7 @@ The persistent core identity and display name are stored in each item's `m_custo
 
 Tests cover binding/rebinding separate copies, ward and inventory access, equipment changes, normal crafting isolation, exact distance limits, broken paths, root identity changes after load, gateway filtering and unloaded discovery. In multiplayer, verify a non-host player builds 40–50 m from a relay, steps out of range, removes/rebinds the book, and accesses a cold unloaded network. Verify names and binding survive inventory storage, dropping, handing the book to another player, and re-entering the world.
 
-### Source layout
+## Repository contents
 
 - `src/`: plugin and shared logic.
 - `tests/`: isolated logic tests.
@@ -139,6 +141,10 @@ Tests cover binding/rebinding separate copies, ward and inventory access, equipm
 - `README.md`: player documentation in English and Russian.
 - `CHANGELOG_EN.md`: English release notes used in mod packages.
 - `CHANGELOG.md`: Russian release notes.
+- `API.md`: public API contract and integration guidance; also the source of the API Wiki page.
+- `docs/wiki/`: configuration guides and Wiki navigation.
+- `examples/ApiTestMod/`: a separate single-player API consumer and its test instructions.
+- `model-sources/`: model snapshots and their import/material notes.
 - `.github/ISSUE_TEMPLATE/`: English and Russian bug report forms.
 
 The root `.gitignore` allows only the public source and documentation paths. Build output, logs, local configuration, game references, Unity caches and authoring notes stay outside Git. Add new public paths explicitly when needed.

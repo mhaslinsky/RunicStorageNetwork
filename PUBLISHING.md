@@ -11,8 +11,8 @@ In Thunderstore, open **Settings → Teams → Rerit → Service Accounts** and 
 ## Release procedure
 
 1. Build and test the mod locally. Keep the source version, compiled DLL version and `manifest.json` version aligned. Update `CHANGELOG_EN.md` and `CHANGELOG.md`.
-2. Commit and push the matching source. Create a tag such as `v0.5.3` on that commit and push the tag.
-3. Create a **draft GitHub release** for that tag and attach `RunicStorageNetwork-0.5.3.zip`. Attach the ZIP before publishing the release.
+2. Commit and push the matching source. Create a tag such as `v1.0.0` on that commit and push the tag.
+3. Create a **draft GitHub release** for that tag and attach `RunicStorageNetwork-1.0.0.zip`. Use the version being released in both names, and rename the validated local preview archive to that release filename. Attach the ZIP before publishing the release.
 4. In Actions, run **Thunderstore release → Run workflow**, entering the tag. This manual run validates the archive and CLI configuration but **never uploads to Thunderstore**, even when the secret is configured.
 5. Once the checks and your in-game testing are complete, publish the GitHub release as a normal release. This triggers the upload automatically. Drafts and prereleases do not upload.
 
@@ -32,7 +32,7 @@ The validator checks the tag, source and compiled assembly versions, metadata, d
 For a local validation run:
 
 ```powershell
-.\tools\ValidateRelease.ps1 -Package '.\dist\RunicStorageNetwork-0.5.3.zip' -Tag 'v0.5.3'
+.\tools\ValidateRelease.ps1 -Package '.\dist\RunicStorageNetwork-1.0.0.zip' -Tag 'v1.0.0'
 ```
 
 ## Failed or repeated runs
@@ -49,7 +49,7 @@ The separate [Hexium release workflow](https://github.com/rerit33/RunicStorageNe
 
 1. Sign in to Hexium and create or join the **Rerit** team. In team settings, create an API token with publishing access. If Hexium requests verification of the team name, complete that on the site first.
 2. Add the token as the repository Actions secret **HEXIUM_AUTH_TOKEN**, separately from Thunderstore's **TCLI_AUTH_TOKEN**. Never commit the token or paste it into an issue or workflow input.
-3. Run **Hexium release → Run workflow** on `main`, set `tag` to `v0.5.6` (or another existing release), and leave **publish** unchecked. This validates the release ZIP, checks dependencies on Hexium and parses the CLI configuration without credentials or an upload.
+3. Run **Hexium release → Run workflow** on `main`, set `tag` to an existing release tag, and leave **publish** unchecked. This validates the release ZIP, checks dependencies on Hexium and parses the CLI configuration without credentials or an upload.
 4. For the first upload, run it again with **publish** checked. Only an already published, stable GitHub release can be uploaded this way. This also allows backfilling older releases without changing their tags.
 
 After setup, publishing a new stable GitHub release automatically starts both platform workflows. Ordinary pushes, pull requests and draft releases do not upload packages. Hexium's manual run uploads **only** when **publish** is explicitly checked; Thunderstore's manual run remains validation-only.
@@ -58,13 +58,13 @@ Hexium accepts Thunderstore-compatible archives and assumes BepInExPack_Valheim,
 
 After upload, the workflow sets Hexium's install location to **both client and server** and verifies the published version. A retry skips an existing version but still applies the install-location setting. If publication reports a connection error or succeeds before a later metadata step fails, inspect the package page before retrying; an accepted version must not be uploaded again.
 
-## API builds and GitHub Wiki
+## Current builds and GitHub Wiki
 
-For the 0.8.8 code-only release, `tools/BuildApiPreview.ps1 -Release` builds and validates `dist/RunicStorageNetwork-0.8.8.zip`, runs the isolated tests, and checks the installed game packet format. Without `-Release`, it creates a local preview archive instead. The script reuses the verified 0.8.1 visual assets and also builds a separate single-player test consumer. Do not include that test plugin in the main release ZIP.
+Build current packages with `tools/BuildGatewayPreview.ps1` and the prepared Unity project; see [BUILDING.md](BUILDING.md#local-10-candidate). This produces the full bundle for all four build pieces and both codex items. The older API-only and unloaded-network builders depend on obsolete assets and reject the current source. The API test consumer is a separate plugin and must not be included in the main release ZIP.
 
 Wiki sources are versioned in this repository: `API.md` becomes Wiki page `API.md`; files in `docs/wiki/` retain their names. After updating them, clone/pull `git@github.com:rerit33/RunicStorageNetwork.wiki.git`, copy those files, review its diff, and commit/push its default branch. The Wiki must have an initial page created through GitHub before it can be cloned. Never force-push Wiki history or remove unrelated pages.
 
-Keep configuration details and the API guide on GitHub. Only the short experimental notice and documentation links belong in the packaged README; neither the Wiki files nor the API example are included in the six-file mod package.
+Keep configuration details and the API guide on GitHub. Only the short distant-storage notice and documentation links belong in the packaged README; neither the Wiki files nor the API example are included in the six-file mod package.
 
 ## References
 

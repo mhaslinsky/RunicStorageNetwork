@@ -41,4 +41,4 @@ First discovery is asynchronous. Repeat `list` or `amount` after a moment if the
 
 The consumer saves the pending request before asking for payment, saves `Paid` before adding input credit, and saves the credit plus `Applied` marker together. An unresolved request from a previous server session enters `RecoveryRequired` instead of inventing a success or retrying a possible payment. Use a disposable test piece/world for that crash-recovery scenario.
 
-Source: `examples/ApiTestMod/ApiTestMod.cs`. Build both local archives with `tools/BuildApiPreview.ps1`; it does not start the game or install anything into a profile.
+Source: `examples/ApiTestMod/ApiTestMod.cs`. Compile it as a separate BepInEx plugin, referencing the matching `RunicStorageNetwork.dll` and the game/dependency libraries described in [BUILDING.md](../../BUILDING.md). The old `BuildApiPreview.ps1` helper relies on pre-gateway assets and refuses the current source. Use `BuildGatewayPreview.ps1` for the main mod's 1.0 package; keep the test consumer separate.
