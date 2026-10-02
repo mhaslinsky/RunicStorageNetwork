@@ -1,8 +1,8 @@
 # Runic Storage Network
 
-> **Experimental:** Distant storage and the mod API are enabled by default in new configurations from 1.0 and may cause errors. Existing settings are kept.
+> **New in 1.0:** Distant storage and the mod API are enabled by default for new configurations. You can turn them off in [settings](https://github.com/rerit33/RunicStorageNetwork/wiki/Configuration#experimental-distant-storage). Existing settings are kept when updating.
 >
-> **Экспериментально:** Удалённые хранилища и API включены по умолчанию в новых конфигурациях с версии 1.0 и могут вызывать ошибки. Сохранённые настройки не меняются.
+> **Новое в 1.0:** Удалённые хранилища и API включены по умолчанию в новых конфигурациях. При желании их можно отключить в [настройках](https://github.com/rerit33/RunicStorageNetwork/wiki/Configuration-RU#экспериментальные-удалённые-хранилища). При обновлении сохранённые настройки не меняются.
 
 [English](#english) | [Русский](#русский)
 

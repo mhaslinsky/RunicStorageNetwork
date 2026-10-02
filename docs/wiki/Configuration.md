@@ -10,7 +10,7 @@ The configuration file is `BepInEx/config/local.runicstoragenetwork.cfg`. It is 
 
 ## Experimental distant storage
 
-**Experimental and may cause errors, including inventory problems. Enabled by default for new configurations from 1.0. Existing values are kept. Back up the world before testing.**
+> **New in 1.0:** Distant storage and the mod API are enabled by default for new configurations. To turn them off, set `ExperimentalUnloadedNetworks = false` and restart. Existing values are kept when updating.
 
 ```ini
 [Experimental]

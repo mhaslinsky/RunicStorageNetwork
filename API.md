@@ -2,7 +2,7 @@
 
 Assembly: `RunicStorageNetwork.dll` 0.8.8. Namespace: `RunicStorageNetwork.API`. Contract version: `NetworkResources.ContractVersion == 1`.
 
-Available starting with **Runic Storage Network 0.8.8**. The API is **experimental and may cause errors**. It requires experimental distant storage, enabled by default for new configurations from 1.0. Existing settings are kept; see [Configuration](https://github.com/rerit33/RunicStorageNetwork/wiki/Configuration#experimental-distant-storage).
+Available starting with **Runic Storage Network 0.8.8**. The API requires distant storage, enabled by default for new configurations from 1.0. You can turn it off in [Configuration](https://github.com/rerit33/RunicStorageNetwork/wiki/Configuration#experimental-distant-storage). Existing settings are kept when updating.
 
 The author has tested the API in single-player near a core and with the core unloaded, consuming iron nails in different quantities. Reviewed logs contain successful one- and five-nail payments without API errors. Multiplayer testing of the API is still pending. The automated suite uses game stand-ins and does not replace that testing.
 
