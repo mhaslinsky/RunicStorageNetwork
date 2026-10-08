@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Added the `GatewayCarriesAllItems` setting, disabled by default, to let Runic Gateways carry every item, including ore and metal bars.
+
 ## 1.0.1
 
 - Fixed a building conflict with ValheimRAFT that could prevent new pieces from attaching to a ship. Improved compatibility with other mods that customize building placement.
