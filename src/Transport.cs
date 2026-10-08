@@ -104,7 +104,7 @@ namespace RunicStorageNetwork {
   internal static long Server=>ZNet.instance.IsServer()?ZNet.GetUID():ZNet.instance.GetServerPeer()?.m_uid??0;
   void Awake(){Instance=this;}
   void Update(){
-   if(world!=ZNet.instance){if(world||rpc!=null){foreach(var inventory in Leases.Keys)Integrations.Block(inventory,false);FastPath.ClearWorld();jobs.Clear();queued.Clear();releasing.Clear();terminal.Clear();awaitingRelease.Clear();sourceGate.Clear();Leases.Clear();ended.Clear();releasedLeases.Clear();Actions.Clear();}world=ZNet.instance;rpc=null;}
+   if(world!=ZNet.instance){if(world||rpc!=null){FastPath.ClearWorld();foreach(var inventory in Leases.Keys)Integrations.Block(inventory,false);jobs.Clear();queued.Clear();releasing.Clear();terminal.Clear();awaitingRelease.Clear();sourceGate.Clear();Leases.Clear();ended.Clear();releasedLeases.Clear();Actions.Clear();}world=ZNet.instance;rpc=null;}
    if(!world||ZRoutedRpc.instance==null)return;
    if(rpc!=ZRoutedRpc.instance){rpc=ZRoutedRpc.instance;Register();}
    Pump();Dispatch();CraftOverview.Tick();CraftInspection.Tick();CraftPreparation.Tick();TerminalTransfer.Tick();FastPath.Tick();

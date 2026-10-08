@@ -53,7 +53,8 @@ namespace RunicStorageNetwork {
   internal static bool Active=>engine.Active;
   internal static bool Holds(ZDO data)=>data!=null&&heldSources.ContainsKey(data.m_uid);
   internal static bool Locked(Inventory inventory)=>inventory!=null&&(heldInventories.ContainsKey(inventory)||lockedPlayerInventory==inventory);
-  internal static bool LockedItem(ItemDrop.ItemData item)=>item!=null&&(item==lockedTool||heldInventories.Keys.Any(inventory=>inventory.ContainsItem(item)));
+  // Keep transfers from copying carried items while a player refund is pending.
+  internal static bool LockedItem(ItemDrop.ItemData item)=>item!=null&&(item==lockedTool||(lockedPlayerInventory!=null&&lockedPlayerInventory.ContainsItem(item))||heldInventories.Keys.Any(inventory=>inventory.ContainsItem(item)));
   internal static bool Blocks(Player player)=>Owns(player)&&engine.Blocks(current.Player);
   internal static bool Owns(Player player)=>current!=null&&current.Player.Value==player;
   internal static bool NativeReady(Player player)=>Owns(player)&&engine.NativeReady(current.Player);
