@@ -51,6 +51,7 @@ namespace RunicStorageNetwork {
 
   internal static bool Running=>engine.Running;
   internal static bool Active=>engine.Active;
+  internal static IEnumerable<ZDO> HeldZDOs=>heldSources.Values.Select(source=>source.Data);
   internal static bool Holds(ZDO data)=>data!=null&&heldSources.ContainsKey(data.m_uid);
   internal static bool Locked(Inventory inventory)=>inventory!=null&&(heldInventories.ContainsKey(inventory)||lockedPlayerInventory==inventory);
   // Keep transfers from copying carried items while a player refund is pending.

@@ -11,6 +11,7 @@ using RunicStorageNetwork.Logic;
 namespace RunicStorageNetwork {
  internal static class Patches {
   internal static void Install(Harmony h){
+   UnloadedNetworks.InstallPinning(h);
    Patch(h,typeof(Humanoid),"SetupEquipment",Type.EmptyTypes,null,nameof(BuilderEquipped));
    Patch(h,typeof(ItemDrop.ItemData),"GetTooltip",new[]{typeof(ItemDrop.ItemData),typeof(int),typeof(bool),typeof(float),typeof(int),typeof(bool)},null,nameof(BuilderTooltip));
    Patch(h,typeof(TextInput),"RequestText",new[]{typeof(TextReceiver),typeof(string),typeof(int)},nameof(TextPromptBefore),nameof(TextPromptAfter));
