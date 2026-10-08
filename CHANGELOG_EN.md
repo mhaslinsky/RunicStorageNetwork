@@ -4,6 +4,7 @@
 
 - Experimental distant storage is now enabled by default for new configurations. Existing settings are kept.
 - Added separate settings to enable or disable the Storage Codex, equippable Builder's Codex and Runic Gateway. Disabled content keeps its existing items and buildings, while its recipes and functions are unavailable.
+- Added the `GatewayCarriesAllItems` setting, disabled by default, to let Runic Gateways carry every item, including ore and metal bars.
 
 - Fixed remote storage refusing chests when item mods initialize extra item data during loading.
 - Crafting no longer waits for unrelated or unavailable chests before confirming materials from the selected sources.
