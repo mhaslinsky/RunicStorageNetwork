@@ -69,10 +69,12 @@ namespace RunicStorageNetwork {
     foreach(var source in sources)source.Delta=new InventoryDelta(source.Inventory,plan.Where(debit=>debit.Source==source.SourceKey),true);
    }catch(Exception error){Plugin.Debug("fast path fallback: "+error.Message);return false;}
    current=new Transaction{Player=playerAdapter};
-   bool handled=engine.TryBuild(playerAdapter,sources.Cast<FastPathCoreSource>().ToList(),()=>pending.Player.TryPlacePiece(pending.Piece),()=>{
+   bool handled;
+   try{handled=engine.TryBuild(playerAdapter,sources.Cast<FastPathCoreSource>().ToList(),()=>pending.Player.TryPlacePiece(pending.Piece),()=>{
     pending.Output=true;Transport.InternalMutation++;try{Actions.FinishBuild(pending);}finally{Transport.InternalMutation--;}
-   },()=>pending.Output,placing=>Actions.Active=placing?pending:null);
-   if(!engine.Running)current=null;
+   },()=>pending.Output,placing=>Actions.Active=placing?pending:null);}
+   catch(Exception error){Plugin.Log.LogWarning("[RSN] fast path unexpected build failure: "+error.Message);handled=engine.Running;}
+   finally{if(!engine.Running)current=null;}
    if(handled){Stockroom.ClearObservations();CraftInspection.Clear();CraftOverview.Rescan();Topology.Dirty();}
    return handled;
   }

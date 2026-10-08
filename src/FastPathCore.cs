@@ -92,8 +92,10 @@ namespace RunicStorageNetwork {
 
   internal bool TryBuild(FastPathCorePlayer player,IReadOnlyList<FastPathCoreSource> sources,Func<bool> place,Action finish,Func<bool> outputObserved=null,Action<bool> placementChanged=null){
    if(player==null||sources==null||sources.Count==0||sources.Any(source=>source==null)||place==null||finish==null||current!=null)return false;
-   var transaction=new Transaction{Player=player,Sources=new List<HeldSource>(),PlayerBefore=Copy(player.Bytes),Finish=finish,PlacementChanged=placementChanged};
-   transaction.PlayerExpected=Copy(transaction.PlayerBefore);current=transaction;bool wrote=false;
+   Transaction transaction;
+   try{var before=Copy(player.Bytes);transaction=new Transaction{Player=player,Sources=new List<HeldSource>(),PlayerBefore=before,PlayerExpected=Copy(before),Finish=finish,PlacementChanged=placementChanged};}
+   catch(Exception){return false;}
+   current=transaction;bool wrote=false;
    try {
     transaction.PlayerHeld=true;player.AcquireHold();
     foreach(var source in sources){
@@ -109,11 +111,14 @@ namespace RunicStorageNetwork {
     if(!transaction.Output)throw new InvalidOperationException("placement refused");
     Charge(transaction);transaction.Cleaning=true;Cleanup(transaction);
    }catch(Exception error){
-    debug("fast path transaction: "+error.Message);
-    if(transaction.Output){
-     try{Charge(transaction);}catch(Exception charge){warning("fast path build cost incomplete: "+charge.Message);}
-     transaction.Cleaning=true;Cleanup(transaction);
-    }else{transaction.Compensating=true;Compensate(transaction);}
+    try{debug("fast path transaction: "+error.Message);}catch(Exception logging){transaction.TickWarned=ReportFailure("fast path transaction logging failed: "+logging.Message,transaction.TickWarned);}
+    // A failed first refund must keep its hold for the next frame.
+    try {
+     if(transaction.Output){
+      transaction.Cleaning=true;try{Charge(transaction);}catch(Exception charge){warning("fast path build cost incomplete: "+charge.Message);}
+      Cleanup(transaction);
+     }else{transaction.Compensating=true;Compensate(transaction);}
+    }catch(Exception retry){current=transaction;transaction.TickWarned=ReportFailure("fast path first-frame retry pending: "+retry.Message,transaction.TickWarned);}
    }
    return wrote||current!=null;
   }

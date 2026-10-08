@@ -47,10 +47,10 @@ sealed class RuntimeDelta {
 sealed class RuntimePlayer:FastPathCorePlayer {
  internal readonly RuntimeInventory Inventory=new RuntimeInventory();internal readonly Dictionary<string,int> Debits;
  internal RuntimeDelta Delta;internal int[] Order;internal bool Held,ToolLocked,PlacementRefused,ThrowAfterOutput,FailFinish,FailOrderAfterRestore,CorruptAfterRestore,FailRelease;
- internal int Outputs,Costs,Stamina=100,Skill,Debt,Durability=100,LastUse,Effects,Restores;internal Action AfterRestore;
+ internal int Outputs,Costs,Stamina=100,Skill,Debt,Durability=100,LastUse,Effects,Restores,ByteReads,FailBytesAt;internal Action AfterRestore;
  internal RuntimePlayer(Dictionary<string,int> debits){Debits=debits;}
  internal void Prepare(){Delta=new RuntimeDelta(Inventory,Debits);}
- internal override byte[] Bytes=>Inventory.Bytes();
+ internal override byte[] Bytes{get{if(++ByteReads==FailBytesAt)throw new InvalidOperationException("player inventory bytes unavailable");return Inventory.Bytes();}}
  internal override string DebitDescription=>Delta.Description;
  internal override bool RestoreComplete=>Delta.RestoreComplete;
  internal override void AcquireHold(){Order=Inventory.Items.Select(item=>item.Slot).ToArray();Held=true;ToolLocked=true;}
@@ -129,6 +129,17 @@ static class FastPathRuntimeTests {
    Check(FastPathCore.PlanSourcesMatch(new[]{"one","two"},new[]{"two","one","one"}),"same set refused");
    Check(!FastPathCore.PlanSourcesMatch(new[]{"one","two"},new[]{"one"})&&!FastPathCore.PlanSourcesMatch(new[]{"one"},new[]{"two"}),"filtered stock allowed");
    Check(!FastPathCore.PlanSourcesMatch(Array.Empty<string>(),Array.Empty<string>())&&!FastPathCore.PlanSourcesMatch(null,new[]{"one"})&&!FastPathCore.PlanSourcesMatch(new[]{""},new[]{""})&&!FastPathCore.PlanSourcesMatch(new[]{"player"},new[]{"player"}),"missing or malformed set allowed");
+  });
+  Test("first player bytes fault falls back without a hold","snapshot failure happens before any debit or reservation",()=>{
+   var player=Player(Debit("Wood",2));var chest=Chest("one");Prepare(player,chest);var playerBefore=player.Inventory.Bytes();var sourceBefore=chest.Bytes;player.FailBytesAt=1;var engine=Engine();
+   Check(!engine.TryBuild(player,new[]{chest},player.Place,player.Finish),"initial bytes fault was handled as a build");Check(player.ByteReads==1&&player.Inventory.Bytes().SequenceEqual(playerBefore)&&chest.Bytes.SequenceEqual(sourceBefore)&&chest.Saves==0&&chest.Inventory.Removes==0&&player.Inventory.Removes==0&&player.Outputs==0&&player.Costs==0,"initial fault changed inventory or placed output");Released(engine,player,chest);
+   Check(engine.TryBuild(player,new[]{chest},player.Place,player.Finish)&&player.Outputs==1&&player.Costs==1,"fallback left stale transaction state");Released(engine,player,chest);
+  });
+  Test("first compensation bytes fault retries without escaping","first-frame errors share the tick warning flag and retain the refund",()=>{
+   var player=Player(Debit("Wood",2));var chest=Chest("one",3,3);Prepare(player,chest);var before=chest.Bytes;var playerBefore=player.Bytes;var messages=new List<string>();var engine=new FastPathCore(message=>warnings.Add(message),message=>messages.Add(message));
+   Check(engine.TryBuild(player,new[]{chest},()=>{chest.FailBytes=true;return false;},player.Finish),"first compensation fault was not handled");string warning="fast path first-frame retry pending: inventory bytes unavailable";
+   Check(engine.Compensating&&engine.Blocks(player)&&chest.Held&&chest.InUse&&chest.IntegrationBlocked&&!engine.Active&&warnings.SequenceEqual(new[]{warning})&&player.Outputs==0&&player.Costs==0,"first compensation fault lost its hold or diagnostic");int removes=chest.Inventory.Removes;engine.Tick();Check(engine.Compensating&&chest.Held&&warnings.SequenceEqual(new[]{warning})&&messages.Last()=="fast path tick retry pending: inventory bytes unavailable","tick repeated the first-frame warning or lost the transaction");
+   chest.FailBytes=false;engine.Tick();Check(chest.Bytes.SequenceEqual(before)&&chest.Stored.SequenceEqual(before)&&player.Bytes.SequenceEqual(playerBefore)&&chest.Inventory.Removes==removes&&warnings.SequenceEqual(new[]{warning})&&player.Outputs==0&&player.Costs==0,"fault recovery repeated payment or lost the refund");Released(engine,player,chest);
   });
   Test("vanilla change-save completes","the debit's own revision bump is not treated as an external change",()=>{
    var player=Player();var chest=Chest("one");Prepare(player,chest);chest.Save();chest.Save();Check(chest.Revision==0,"unchanged save bumped revision");
