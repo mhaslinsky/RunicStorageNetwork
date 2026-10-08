@@ -65,6 +65,8 @@ The Storage Codex uses the coverage of its core or relay; it does not extend it.
 
 `OwnerFastPath` is administrator-only and synchronized by the server. The fast path applies one fenced local debit, places the piece, and charges normal build costs once. Any chest that is busy, owned by another client, unloaded, filtered by a gateway, or reserved uses the coordinated path. If a local restore takes more than one frame, the chest remains in memory until it is safe to release.
 
+If a permanent fence mismatch prevents a restore, RSN leaves that debit in place, releases the hold and logs the unrestored items.
+
 ## Containers
 
 | Setting in `[Containers]` | Default | Effect |

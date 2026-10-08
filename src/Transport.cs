@@ -369,6 +369,6 @@ namespace RunicStorageNetwork {
   void Refused(long sender,ZPackage p){if(sender!=Server)return;string id=p.ReadString(),why=p.ReadString();CraftPreparation.Refused(id,why);Actions.Refused(id,why);TerminalTransfer.Refused(id,why);}
   internal static bool Locked(Inventory inv)=>InternalMutation==0&&inv!=null&&(Leases.ContainsKey(inv)||FastPath.Locked(inv)||Actions.Locked(inv)||CraftPreparation.Locked(inv)||(ExtraInventoryLock?.Invoke(inv)??false));
   internal static bool LockedItem(ItemDrop.ItemData item)=>InternalMutation==0&&(Leases.Keys.Any(i=>i.ContainsItem(item))||FastPath.LockedItem(item)||(Actions.Waiting?.Player&&Actions.Waiting.Player.GetInventory().ContainsItem(item))||CraftPreparation.LockedItem(item)||(ExtraItemLock?.Invoke(item)??false));
-  internal static bool Reserved(ZDO zdo,string except=null)=>zdo!=null&&(FastPath.Holds(zdo,except)||(zdo.GetString("rsn_lease","")!=""&&zdo.GetString("rsn_lease","")!=except)||(Instance!=null&&ZNet.instance&&ZNet.instance.IsServer()&&Instance.sourceGate.Held(R.Key(zdo.m_uid),except)));
+  internal static bool Reserved(ZDO zdo,string except=null)=>zdo!=null&&(FastPath.Holds(zdo)||(zdo.GetString("rsn_lease","")!=""&&zdo.GetString("rsn_lease","")!=except)||(Instance!=null&&ZNet.instance&&ZNet.instance.IsServer()&&Instance.sourceGate.Held(R.Key(zdo.m_uid),except)));
  }
 }

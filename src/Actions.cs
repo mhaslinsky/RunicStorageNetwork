@@ -59,8 +59,10 @@ namespace RunicStorageNetwork {
   }
 
   internal static bool Build(Player p,Piece piece){
-   if(FastPath.Blocks(p))return false;
-   if(Active!=null){if(FastPath.ConsumeNativePlacement(p))return true;if(FastPath.Owns(p))return false;return true;}
+   var entry=FastPathCore.BuildEntry(FastPath.Blocks(p),FastPath.Running,FastPath.Owns(p),FastPath.NativeReady(p));
+   if(entry==FastPathBuildEntry.Native)return FastPath.ConsumeNativePlacement(p);
+   if(entry==FastPathBuildEntry.Refuse)return false;
+   if(Active!=null)return true;
    if(!BuildPiece(p,piece))return true;if(Waiting!=null)return false;
    if(LocalBuildMaterials(p,piece,Player.RequirementMode.CanBuild))return true;
    var core=Context(p,false);

@@ -66,7 +66,7 @@ namespace RunicStorageNetwork {
   static void RecipeSelected(InventoryGui __instance,Player player)=>CraftPreparation.Selection(__instance,player);
   static void RecipeUpdated(InventoryGui __instance)=>CraftPreparation.Button(__instance);
   static void CraftCancelled(){CraftPreparation.Cancel();if(Actions.Waiting?.Op.Build==false)Actions.Cancel();}
-  static bool Build(Player __instance,Piece piece,ref bool __result){if(ContentSettings.AllowsPiece(piece)&&Actions.Build(__instance,piece))return true;__result=false;return false;}
+  static bool Build(Player __instance,Piece piece,ref bool __result){bool allowed=ContentSettings.AllowsPiece(piece);if(FastPathCore.AllowOriginalBuild(allowed,allowed&&Actions.Build(__instance,piece)))return true;__result=false;return false;}
   static bool Consume(Player __instance)=>Actions.Active==null||Actions.Active.Player!=__instance;
   static bool HaveCraft(Player __instance,Recipe piece,bool discover,int qualityLevel,int amount,ref bool __result){if(discover)return true;if(!Actions.HaveCraft(__instance,piece,qualityLevel,amount,out bool result))return true;__result=result;return false;}
   static bool HaveBuild(Player __instance,Piece piece,Player.RequirementMode mode,ref bool __result){
