@@ -56,7 +56,7 @@ if($Tests){
  $probeRsp=Join-Path $Output 'BuildToolRuntimeTests.rsp'
  $probeLines=@('/nologo','/nostdlib+','/langversion:9','/target:exe','/define:BUILD_TOOL_RUNTIME_TESTS',('/out:"'+$probe+'"'))
  $probeLines+=@($refs | Select-Object -Unique | ForEach-Object {'/reference:"'+$_+'"'})
- $probeLines+=@('src\BuildToolPolicy.cs','src\BuildToolRules.cs','src\ContainerRules.cs','src\Planner.cs','tests\BuildToolRuntimeTests.cs' | ForEach-Object {'"'+(Join-Path $root $_)+'"'})
+ $probeLines+=@('src\BuildToolPolicy.cs','src\BuildToolRules.cs','src\ContainerRules.cs','src\Planner.cs','src\FastPathCore.cs','tests\BuildToolRuntimeTests.cs' | ForEach-Object {'"'+(Join-Path $root $_)+'"'})
  $probeLines+='"'+$extracted+'"'
  [IO.File]::WriteAllLines($probeRsp,$probeLines)
  & "$editor\NetCoreRuntime\dotnet.exe" "$editor\DotNetSdkRoslyn\csc.dll" "@$probeRsp"
