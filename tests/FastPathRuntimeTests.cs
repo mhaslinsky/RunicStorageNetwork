@@ -64,11 +64,14 @@ sealed class RuntimePlayer:FastPathCorePlayer {
 sealed class RuntimeChest:FastPathCoreSource {
  internal readonly string Name;internal readonly RuntimeInventory Inventory=new RuntimeInventory();internal readonly Dictionary<string,int> Debits;
  internal RuntimeDelta Delta;internal int[] Order;internal byte[] Stored;
- internal long OwnerId=1;internal uint RevisionId;internal bool InUse,IntegrationBlocked,Held,Valid=true,FailSaveBefore,FailSaveAfter,FailRelease,FailOrderAfterRestore,CorruptAfterRestore;
+ internal long OwnerId=1;internal uint RevisionId;internal bool InUse,IntegrationBlocked,Held,Valid=true,FailSaveBefore,FailSaveAfter,FailRelease,FailOrderAfterRestore,CorruptAfterRestore,FailBytes,FailDescription;
  internal int Saves,Releases,ForcedReleases,Restores;
  internal Action OnApply,OnSave,AfterRestore;internal RuntimeChest(string name,Dictionary<string,int> debits){Name=name;Debits=debits;Inventory.OnChanged=()=>{if(OwnerId==1)Save();};}
  internal void Prepare(){Stored=Inventory.Bytes();Delta=new RuntimeDelta(Inventory,Debits);}
- internal override string Key=>Name;internal override long Owner=>1;internal override long CurrentOwner=>OwnerId;internal override uint Revision=>RevisionId;internal override bool IsValid=>Valid;internal override byte[] Bytes=>Inventory.Bytes();internal override string DebitDescription=>Delta.Description;internal override bool RestoreComplete=>Delta.RestoreComplete;
+ internal override string Key=>Name;internal override long Owner=>1;internal override long CurrentOwner=>OwnerId;internal override uint Revision=>RevisionId;internal override bool IsValid=>Valid;
+ internal override byte[] Bytes{get{if(FailBytes)throw new InvalidOperationException("inventory bytes unavailable");return Inventory.Bytes();}}
+ internal override string DebitDescription{get{if(FailDescription)throw new InvalidOperationException("debit description unavailable");return Delta.Description;}}
+ internal override bool RestoreComplete=>Delta.RestoreComplete;
  internal override void AcquireHold(){Order=Inventory.Items.Select(item=>item.Slot).ToArray();Held=true;InUse=true;IntegrationBlocked=true;}
  internal override void ApplyDebit(){OnApply?.Invoke();Delta.Apply();}
  internal override void Save(){Saves++;OnSave?.Invoke();if(FailSaveBefore)throw new InvalidOperationException("save refused before write");var bytes=Inventory.Bytes();if(!bytes.SequenceEqual(Stored)){Stored=bytes;RevisionId++;}if(FailSaveAfter)throw new InvalidOperationException("save refused after write");}
@@ -127,13 +130,10 @@ static class FastPathRuntimeTests {
    Check(!FastPathCore.PlanSourcesMatch(new[]{"one","two"},new[]{"one"})&&!FastPathCore.PlanSourcesMatch(new[]{"one"},new[]{"two"}),"filtered stock allowed");
    Check(!FastPathCore.PlanSourcesMatch(Array.Empty<string>(),Array.Empty<string>())&&!FastPathCore.PlanSourcesMatch(null,new[]{"one"})&&!FastPathCore.PlanSourcesMatch(new[]{""},new[]{""})&&!FastPathCore.PlanSourcesMatch(new[]{"player"},new[]{"player"}),"missing or malformed set allowed");
   });
-  Test("stand-in revision fidelity","the stand-in advances its revision only when saved bytes change, as vanilla ZDO.Set does",()=>{
-   var player=Player();var chest=Chest("one");Prepare(player,chest);chest.Save();chest.Save();Check(chest.Revision==0,"unchanged save bumped revision");
-   chest.Inventory.Items[0].Stack--;chest.Inventory.Changed();Check(chest.Revision==1&&chest.Stored.SequenceEqual(chest.Bytes),"change did not save");chest.Save();Check(chest.Revision==1,"explicit save double bumped revision");
-  });
   Test("vanilla change-save completes","the debit's own revision bump is not treated as an external change",()=>{
-   var player=Player();var chest=Chest("one");var engine=Engine();Check(Build(engine,player,chest),"build not handled");
-   Check(chest.Inventory.Count("Wood")==1&&chest.Revision==1&&player.Outputs==1&&player.Costs==1,"wrong debit or output");Check(chest.Stored.SequenceEqual(chest.Bytes),"debit not saved");Released(engine,player,chest);
+   var player=Player();var chest=Chest("one");Prepare(player,chest);chest.Save();chest.Save();Check(chest.Revision==0,"unchanged save bumped revision");
+   var engine=Engine();Check(engine.TryBuild(player,new[]{chest},player.Place,player.Finish,()=>player.Outputs>0),"build not handled");
+   Check(chest.Inventory.Count("Wood")==1&&chest.Revision==1&&player.Outputs==1&&player.Costs==1,"wrong debit or output");Check(chest.Stored.SequenceEqual(chest.Bytes),"debit not saved");chest.Save();Check(chest.Revision==1,"explicit save double bumped revision");Released(engine,player,chest);
   });
   Test("mixed player and several chest debits","the exact plan removes several item groups and whole stacks once",()=>{
    var player=Player(Debit("Wood",2));var first=Chest("first",3,3);first.Inventory.Items.Add(Item("Stone",2,1,"stone"));first.Debits.Add("Stone",1);var second=Chest("second",4,2);var engine=Engine();
@@ -175,6 +175,18 @@ static class FastPathRuntimeTests {
    var player=Player(Debit("Wood",2));player.PlacementRefused=true;player.Inventory.FailAdd=true;var first=Chest("first",3,3);first.Inventory.FailAdd=true;first.FailRelease=true;var second=Chest("second",3,3);second.Inventory.FailAdd=true;var engine=Engine();Build(engine,player,first,second);Check(engine.Compensating,"no compensation to clear");engine.Clear();
    Check(warnings.SequenceEqual(new[]{"fast path debit unrestored key=first items=Wood=3","fast path debit unrestored key=second items=Wood=3","fast path debit unrestored key=player items=Wood=2","fast path world hold cleanup failed key=first: integration unblock refused"}),"world debit warnings wrong");
    Check(warnings.Any(message=>message.Contains("world hold cleanup failed key=first"))&&first.ForcedReleases==1&&second.ForcedReleases==1,"release failure not handled");Released(engine,player,first,second);engine.Clear();Released(engine,player,first,second);
+  });
+  foreach(bool description in new[]{false,true})Test("tick "+(description?"description":"bytes")+" fault retries without escaping","unexpected adapter errors warn once and retain the transaction",()=>{
+   var player=Player();player.PlacementRefused=true;var chest=Chest("one",3,3);chest.Inventory.FailAdd=true;var before=chest.Bytes;var messages=new List<string>();var engine=new FastPathCore(message=>warnings.Add(message),message=>messages.Add(message));Build(engine,player,chest);messages.Clear();
+   chest.FailBytes=!description;chest.FailDescription=description;if(description)chest.RevisionId++;string warning="fast path tick retry pending: "+(description?"debit description unavailable":"inventory bytes unavailable");
+   for(int frame=0;frame<3;frame++){engine.Tick();Check(engine.Compensating&&engine.Blocks(player)&&chest.Held,"fault lost pending transaction");}
+   Check(warnings.SequenceEqual(new[]{warning})&&messages.SequenceEqual(new[]{warning,warning}),"unexpected retry diagnostics wrong");chest.FailBytes=chest.FailDescription=chest.Inventory.FailAdd=false;engine.Tick();
+   Check(description?warnings.SequenceEqual(new[]{warning,"fast path debit unrestored key=one items=Wood=3"}):warnings.SequenceEqual(new[]{warning})&&chest.Bytes.SequenceEqual(before),"fault recovery outcome wrong");Released(engine,player,chest);
+  });
+  foreach(bool warningFault in new[]{false,true})Test("world clear survives "+(warningFault?"warning":"description")+" fault","one diagnostic failure cannot skip any source or player hold",()=>{
+   var player=Player(Debit("Wood",2));player.PlacementRefused=true;player.Inventory.FailAdd=true;var first=Chest("first",3,3);var second=Chest("second",3,3);first.Inventory.FailAdd=second.Inventory.FailAdd=true;
+   var engine=new FastPathCore(message=>{if(warningFault&&message=="fast path debit unrestored key=first items=Wood=3")throw new InvalidOperationException("warning sink refused");warnings.Add(message);});Build(engine,player,first,second);first.FailDescription=!warningFault;engine.Clear();
+   Check(warnings.SequenceEqual(new[]{"fast path world debit warning failed key=first: "+(warningFault?"warning sink refused":"debit description unavailable"),"fast path debit unrestored key=second items=Wood=3","fast path debit unrestored key=player items=Wood=2"}),"world failure diagnostics wrong");Check(first.ForcedReleases==1&&second.ForcedReleases==1,"source force release skipped");Released(engine,player,first,second);int count=warnings.Count;engine.Clear();Check(warnings.Count==count,"cleared state warned again");
   });
   Test("compensation keeps its source hold","the core keeps a failed restore pending and blocks the owning player",()=>{
    var player=Player();player.PlacementRefused=true;var chest=Chest("one",3,3);chest.Inventory.FailAdd=true;var engine=Engine();Build(engine,player,chest);

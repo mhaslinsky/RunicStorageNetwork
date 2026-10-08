@@ -53,7 +53,7 @@ namespace RunicStorageNetwork {
    internal FastPathCorePlayer Player;
    internal List<HeldSource> Sources;
    internal byte[] PlayerBefore,PlayerExpected;
-   internal bool PlayerApplied,PlayerHeld,Compensating,Cleaning,Output,Charged,PlayerRestoreWarned,PlayerReleaseWarned;
+   internal bool PlayerApplied,PlayerHeld,Compensating,Cleaning,Output,Charged,PlayerRestoreWarned,PlayerReleaseWarned,TickWarned;
    internal Action Finish;
    internal Action<bool> PlacementChanged;
   }
@@ -179,19 +179,32 @@ namespace RunicStorageNetwork {
    try{ReleasePlayer(transaction);}catch(Exception error){Pending("player","release",error,ref transaction.PlayerReleaseWarned);return;}
    current=null;
   }
-  internal void Tick(){if(current==null)return;ticking=true;try{if(current.Compensating)Compensate(current);else if(current.Cleaning)Cleanup(current);}finally{ticking=false;}}
+  bool ReportFailure(string message,bool warned=false){
+   try{if(warned)debug(message);else{warning(message);return true;}}
+   catch(Exception error){try{debug("fast path logging failed: "+error.Message);}catch(Exception){return warned;}}
+   return warned;
+  }
+  internal void Tick(){
+   var transaction=current;if(transaction==null)return;ticking=true;
+   try{if(transaction.Compensating)Compensate(transaction);else if(transaction.Cleaning)Cleanup(transaction);}
+   catch(Exception error){current=transaction;transaction.TickWarned=ReportFailure("fast path tick retry pending: "+error.Message,transaction.TickWarned);}
+   finally{ticking=false;}
+  }
   internal void Clear(){
    var transaction=current;if(transaction==null)return;
    try {
     if(!transaction.Output){
-     foreach(var held in transaction.Sources.Where(held=>held.Applied))WarnDebit(held.Source.Key,held.Source.DebitDescription);
-     if(transaction.PlayerApplied)WarnDebit("player",transaction.Player.DebitDescription);
+     foreach(var held in transaction.Sources.Where(held=>held.Applied)){
+      string key="unknown";try{key=held.Source.Key;WarnDebit(key,held.Source.DebitDescription);}catch(Exception error){ReportFailure("fast path world debit warning failed key="+key+": "+error.Message);}
+     }
+     if(transaction.PlayerApplied){try{WarnDebit("player",transaction.Player.DebitDescription);}catch(Exception error){ReportFailure("fast path world debit warning failed key=player: "+error.Message);}}
     }
     foreach(var held in transaction.Sources.Where(held=>!held.Released)){
-     try{held.Source.ClearHold();}catch(Exception error){warning("fast path world hold cleanup failed key="+held.Source.Key+": "+error.Message);}finally{held.Released=true;}
+     string key="unknown";try{key=held.Source.Key;}catch(Exception error){ReportFailure("fast path world source key failed: "+error.Message);}
+     try{held.Source.ClearHold();}catch(Exception error){ReportFailure("fast path world hold cleanup failed key="+key+": "+error.Message);}finally{held.Released=true;}
     }
-    try{transaction.Player.ClearHold();}catch(Exception error){warning("fast path world player cleanup failed: "+error.Message);}
-   }finally{nativeCall=false;executing=false;current=null;transaction.PlacementChanged?.Invoke(false);}
+    try{transaction.Player.ClearHold();}catch(Exception error){ReportFailure("fast path world player cleanup failed: "+error.Message);}
+   }finally{nativeCall=false;executing=false;current=null;try{transaction.PlacementChanged?.Invoke(false);}catch(Exception error){ReportFailure("fast path world placement cleanup failed: "+error.Message);}}
   }
  }
 }
