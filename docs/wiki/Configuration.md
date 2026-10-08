@@ -53,7 +53,7 @@ All distances are in metres. Larger radii can include more nodes and chests and 
 | Setting in `[Network]` | Default | Allowed values | Effect |
 | --- | --- | --- | --- |
 | `SupplyEnabled` | `true` | `true` / `false` | Enables network resource supply. Disabling it keeps the build pieces available, but stops new API payments as well. |
-| `OwnerFastPath` | `true` | `true` / `false` | Builds immediately when every needed chest is owned and loaded by the building client. Set `false` to use the coordinated path for all network builds. |
+| `OwnerFastPath` | `true` | `true` / `false` | Builds immediately when every needed chest is loaded and owned by the building player's game. Set `false` to use normal network building. |
 | `StorageRadius` | `20` | `1`–`100` | Core-to-storage connection radius. |
 | `SupplyRadius` | `20` | `1`–`100` | Supply radius around a core for crafting, building and storage access. |
 | `RelayLinkRange` | `50` | `1`–`100` | Maximum distance for links between network nodes. |
@@ -63,9 +63,9 @@ All distances are in metres. Larger radii can include more nodes and chests and 
 
 The Storage Codex uses the coverage of its core or relay; it does not extend it. No recipe changes are needed when changing ranges.
 
-`OwnerFastPath` is administrator-only and synchronized by the server. The fast path applies one fenced local debit, places the piece, and charges normal build costs once. Any chest that is busy, owned by another client, unloaded, filtered by a gateway, or reserved uses the coordinated path. If restoration or cleanup needs another frame, RSN holds the affected chests and blocks this player's builds until it can release them.
+`OwnerFastPath` is administrator-only, on by default and synchronized by the server. It removes the required materials and finishes the build immediately, with normal build costs charged once. Builds use normal network payment if a needed chest is busy, reserved, unloaded, owned by another player's game or unavailable through a gateway. Pending material refunds or chest release block further builds by this player until they finish.
 
-If ownership loss or a permanent inventory mismatch prevents restoration, RSN leaves that debit in place, releases the hold and logs the unrestored items. Leaving the world during restoration also logs each unrestored debit before clearing the holds.
+If a chest changes owner or an inventory changes in a way that prevents a refund, RSN releases the chest and logs a warning about the materials it could not restore. Leaving the world during a pending refund also logs the remaining materials before releasing the chests.
 
 ## Containers
 
