@@ -29,6 +29,19 @@ namespace RunicStorageNetwork {
     var extension=prefab.GetComponent<StationExtension>();if(extension)extensionRange=Mathf.Max(extensionRange,extension.m_maxStationDistance);
    }
   }
+  internal static bool LiveOwner(long owner)=>owner==ZNet.GetUID()||ZNet.instance.GetPeer(owner)!=null;
+  // ServersideQoL holds chests under this synthetic id while it works on them; it is not departed.
+  const long ServersideQoLOwner=-3384858718045732864;
+  // Every relog issues a new session id, so a chest nobody has been near since keeps a dead owner.
+  // Claim it for the server the way UnloadedNetworks.ClaimUnowned does, unless something holds it.
+  static bool ClaimDeparted(ZDO z){
+   long owner=z.GetOwner();
+   bool claimable=ZNet.instance.IsServer()&&owner!=0&&owner!=ServersideQoLOwner&&!Transport.Reserved(z)&&z.GetString("rsn_lease","")=="";
+   Plugin.Debug("source owner not connected source="+R.Key(z.m_uid)+" owner="+owner+(claimable?" claimed by server":" left alone"));
+   if(!claimable)return false;
+   z.SetOwner(ZNet.GetUID());z.Set(ZDOVars.s_inUse,0);
+   return LiveOwner(z.GetOwner());
+  }
   internal static ZDO Data(ZDOID id){var z=ZDOMan.instance?.GetZDO(id);return z!=null&&z.IsValid()?z:null;}
   internal static ZDO Source(string key){
    var parts=key.Split(':');if(parts.Length!=2||!long.TryParse(parts[0],NumberStyles.HexNumber,CultureInfo.InvariantCulture,out long user)||!uint.TryParse(parts[1],NumberStyles.HexNumber,CultureInfo.InvariantCulture,out uint id))return null;
@@ -138,11 +151,26 @@ namespace RunicStorageNetwork {
   internal bool Connected(Vector3 point){
    return Graph.Nodes.TryGetValue(R.Key(op.Core),out var root)&&root.Root&&root.Confirmed&&(builderBinding==null||Graph.BoundNetwork(builderBinding)==root.Network)&&Graph.Supplies(root.Network,Topology.Position(point),n=>true,builderBinding!=null);
   }
+  // ValheimPlus writes its workbench ranges onto live instances in Start/Awake, never
+  // onto prefabs, so prefab values here would disagree with what the client enforces.
+  static bool ValheimPlusWorkbench(out float range,out float attachment){
+   range=attachment=0;
+   try{
+    var current=Type.GetType("ValheimPlus.Configurations.Configuration, ValheimPlus")?.GetProperty("Current")?.GetValue(null);
+    var workbench=current?.GetType().GetProperty("Workbench")?.GetValue(current);
+    if(workbench==null||!(bool)workbench.GetType().GetProperty("IsEnabled").GetValue(workbench))return false;
+    range=(float)workbench.GetType().GetProperty("workbenchRange").GetValue(workbench);
+    attachment=(float)workbench.GetType().GetProperty("workbenchAttachmentRange").GetValue(workbench);
+    return true;
+   }catch(Exception e){Plugin.Debug("ValheimPlus workbench range unreadable: "+e.Message);return false;}
+  }
   int Level(ZDO z,CraftingStation station){
+   bool vplus=ValheimPlusWorkbench(out _,out float attachment);
    int level=1;var kinds=new HashSet<string>(StringComparer.Ordinal);
-   foreach(var candidate in Around(z.GetPosition(),extensionRange)){
+   foreach(var candidate in Around(z.GetPosition(),vplus?Mathf.Max(extensionRange,attachment):extensionRange)){
     var prefab=Prefab(candidate);var e=prefab?prefab.GetComponent<StationExtension>():null;
-    if(e&&e.m_craftingStation&&e.m_craftingStation.m_name==station.m_name&&Vector3.Distance(candidate.GetPosition(),z.GetPosition())<e.m_maxStationDistance&&(e.m_stack||kinds.Add(prefab.GetComponent<Piece>()?.m_name??prefab.name)))level++;
+    float reach=e&&vplus?attachment:e?e.m_maxStationDistance:0;
+    if(e&&e.m_craftingStation&&e.m_craftingStation.m_name==station.m_name&&Vector3.Distance(candidate.GetPosition(),z.GetPosition())<reach&&(e.m_stack||kinds.Add(prefab.GetComponent<Piece>()?.m_name??prefab.name)))level++;
    }
    return level;
   }
@@ -150,10 +178,16 @@ namespace RunicStorageNetwork {
    var z=Data(op.Station);var prefab=Prefab(z);var station=prefab?prefab.GetComponent<CraftingStation>():null;
    if(!station||station.m_name!=name)return false;
    point.y=z.GetPosition().y; // Vanilla building range is horizontal.
-   return Vector3.Distance(point,z.GetPosition())<station.m_rangeBuild+(Level(z,station)-1)*station.m_extraRangePerLevel;
+   float baseRange=ValheimPlusWorkbench(out float range,out _)&&range>0?range:station.m_rangeBuild;
+   float limit=baseRange+(Level(z,station)-1)*station.m_extraRangePerLevel,distance=Vector3.Distance(point,z.GetPosition());
+   if(distance>=limit)Plugin.Debug("build station out of range station="+R.Key(z.m_uid)+" distance="+distance.ToString("F1")+" limit="+limit.ToString("F1"));
+   return distance<limit;
   }
   internal bool SourceAllowed(ZDO z,out string reason){
    reason="unloaded";var prefab=Prefab(z);if(!prefab||z.GetOwner()==0)return false;
+   // A non-zero owner may be no peer at all (a disconnected player, or a server mod
+   // holding the chest under a synthetic id). Nobody would answer prepare or release.
+   reason="owner unavailable";if(!LiveOwner(z.GetOwner())&&!ClaimDeparted(z))return false;
    reason=ContainerPolicy.Reason(prefab.name);if(reason!=null)return false;
    reason="not player built";if(z.GetLong(ZDOVars.s_creator,0)==0)return false;
    // Privacy, wagon and root-override are prefab facts already settled by ContainerPolicy.

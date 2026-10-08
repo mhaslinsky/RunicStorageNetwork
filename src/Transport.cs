@@ -115,6 +115,7 @@ namespace RunicStorageNetwork {
     try{Replay(j);}catch(Exception e){Plugin.Debug(j.Op.Id+" acknowledgement retry: "+e.Message);}
    }
    foreach(var release in releasing.ToArray())foreach(var key in release.Value.ToArray()){
+    if(Orphaned(release.Key,key.Key,key.Value.Owner)){Plugin.Log.LogWarning("[RSN] "+release.Key+" release owner is not connected and holds no lease; released source="+key.Key+" owner="+key.Value.Owner);ReleasedLocally(release.Key,key.Key);continue;}
     if(!key.Value.Warned&&Time.unscaledTime-key.Value.Since>20){key.Value.Warned=true;Plugin.Critical(release.Key,"Release acknowledgement unresolved; source="+key.Key+" owner="+key.Value.Owner);}
     if(Time.unscaledTime-key.Value.LastSend>=2)SendRelease(release.Key,key.Key,key.Value);
    }
@@ -344,6 +345,16 @@ namespace RunicStorageNetwork {
    if(!ZNet.instance.IsServer())return;string id=p.ReadString(),key=p.ReadString();
    if(!releasing.TryGetValue(id,out var sources)||!sources.TryGetValue(key,out var release)||release.Owner!=sender)return;
    sources.Remove(key);sourceGate.Released(id,key);if(sources.Count==0)releasing.Remove(id);CompleteRelease(id);
+  }
+  // An owner that is not a connected peer can never acknowledge. Without a lease recorded
+  // on the chest there is nothing to roll back, so holding the source would only lock it.
+  static bool Orphaned(string id,string key,long owner){
+   if(RemoteContext.LiveOwner(owner))return false;
+   var z=RemoteContext.Source(key);return z==null||z.GetString("rsn_lease","")!=id;
+  }
+  void ReleasedLocally(string id,string key){
+   if(!releasing.TryGetValue(id,out var sources)||!sources.Remove(key))return;
+   sourceGate.Released(id,key);if(sources.Count==0)releasing.Remove(id);CompleteRelease(id);
   }
   void Release(long sender,ZPackage p){
    if(sender!=Server)return;string id=p.ReadString(),key=p.ReadString();bool rollback=p.ReadBool();var lease=Leases.Values.FirstOrDefault(l=>l.Op.Id==id&&l.Key==key);if(lease==null){releasedLeases.Add(id+key);AcknowledgeRelease(id,key);return;}
