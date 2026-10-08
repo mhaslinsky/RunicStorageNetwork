@@ -7,6 +7,9 @@ namespace RunicStorageNetwork {
  internal sealed class FastPathFenceException:InvalidOperationException {
   internal FastPathFenceException(string message):base(message){}
  }
+ internal sealed class FastPathPermanentRestoreException:InvalidOperationException {
+  internal FastPathPermanentRestoreException(string message,Exception inner=null):base(message,inner){}
+ }
  internal sealed class FastPathSourceState {
   internal bool Valid,SceneOwner,Replica,Access,InUse,NetworkInUse,Locked,Reserved,Busy,Held;
   internal long Owner,LocalOwner;
@@ -19,6 +22,7 @@ namespace RunicStorageNetwork {
   internal abstract bool IsValid {get;}
   internal abstract byte[] Bytes {get;}
   internal abstract string DebitDescription {get;}
+  internal abstract bool RestoreComplete {get;}
   internal abstract void AcquireHold();
   internal abstract void ApplyDebit();
   internal abstract void Save();
@@ -29,6 +33,7 @@ namespace RunicStorageNetwork {
  internal abstract class FastPathCorePlayer {
   internal abstract byte[] Bytes {get;}
   internal abstract string DebitDescription {get;}
+  internal abstract bool RestoreComplete {get;}
   internal abstract void AcquireHold();
   internal abstract void ApplyDebit();
   internal abstract void RestoreDebit();
@@ -80,7 +85,7 @@ namespace RunicStorageNetwork {
   internal static List<T> RestoreOrder<T>(IEnumerable<T> items,IReadOnlyList<int> before,Func<T,int> slot){
    var ordered=items.ToList();var positions=new Dictionary<int,int>();
    for(int index=0;index<before.Count;index++)positions.Add(before[index],index);
-   if(ordered.Count!=before.Count||!new HashSet<int>(ordered.Select(slot)).SetEquals(before))throw new InvalidOperationException("restored inventory slots changed");
+   if(ordered.Count!=before.Count||!new HashSet<int>(ordered.Select(slot)).SetEquals(before))throw new FastPathPermanentRestoreException("restored inventory slots changed");
    return ordered.OrderBy(item=>positions[slot(item)]).ToList();
   }
 
@@ -121,42 +126,56 @@ namespace RunicStorageNetwork {
   void CaptureAfterMutation(HeldSource held){if(held.Source.IsValid&&held.Source.CurrentOwner==held.ExpectedOwner)Recapture(held);}
   void Mutate(HeldSource held,bool restore){
    try {
-    if(restore){if(!held.Restored){held.Source.RestoreDebit();held.Restored=true;}}
+    // A completed delta cannot repair a changed inventory on later frames.
+    if(restore){
+     if(!held.Restored){held.Source.RestoreDebit();held.Restored=held.Source.RestoreComplete;if(!held.Restored)throw new InvalidOperationException("source restore incomplete");}
+     if(!held.Source.Bytes.SequenceEqual(held.Before))throw new FastPathPermanentRestoreException("restored inventory bytes changed");
+    }
     else held.Source.ApplyDebit();
     // Vanilla change-save advances the revision inside the mutation.
     CheckOwner(held);held.Source.Save();Recapture(held);
-    if(restore){if(!held.ExpectedBytes.SequenceEqual(held.Before))throw new InvalidOperationException("restored inventory bytes changed");held.Applied=false;}
-   }catch{CaptureAfterMutation(held);throw;}
+    if(restore){if(!held.ExpectedBytes.SequenceEqual(held.Before))throw new FastPathPermanentRestoreException("restored inventory bytes changed");held.Applied=false;}
+   }catch(Exception error){CaptureAfterMutation(held);if(restore&&held.Source.RestoreComplete&&!held.Source.Bytes.SequenceEqual(held.Before)&&!(error is FastPathPermanentRestoreException))throw new FastPathPermanentRestoreException(error.Message,error);throw;}
   }
   void CheckPlayer(Transaction transaction){if(!transaction.Player.Bytes.SequenceEqual(transaction.PlayerExpected))throw new FastPathFenceException("player contents changed");}
   void WarnDebit(string key,string description){if(!string.IsNullOrEmpty(description))warning("fast path debit unrestored key="+key+" items="+description);}
   void Compensate(Transaction transaction){
    if(transaction.PlayerApplied){
+    string description=transaction.Player.DebitDescription;
     try {
-     if(!transaction.Player.Bytes.SequenceEqual(transaction.PlayerExpected)){WarnDebit("player",transaction.Player.DebitDescription);transaction.PlayerApplied=false;}
+     if(!transaction.Player.Bytes.SequenceEqual(transaction.PlayerExpected)){WarnDebit("player",description);transaction.PlayerApplied=false;}
      else {
       try{transaction.Player.RestoreDebit();}finally{transaction.PlayerExpected=Copy(transaction.Player.Bytes);}
-      if(!transaction.PlayerExpected.SequenceEqual(transaction.PlayerBefore))throw new InvalidOperationException("restored player bytes changed");
+      if(!transaction.Player.RestoreComplete)throw new InvalidOperationException("player restore incomplete");
+      if(!transaction.PlayerExpected.SequenceEqual(transaction.PlayerBefore))throw new FastPathPermanentRestoreException("restored player bytes changed");
       transaction.PlayerApplied=false;
      }
-    }catch(Exception error){debug("fast path player compensation pending: "+error.Message);}
+    }catch(Exception error){
+     if(error is FastPathPermanentRestoreException||(transaction.Player.RestoreComplete&&!transaction.PlayerExpected.SequenceEqual(transaction.PlayerBefore))){WarnDebit("player",description);transaction.PlayerApplied=false;}
+     else debug("fast path player compensation pending: "+error.Message);
+    }
    }
+   if(!transaction.PlayerApplied&&transaction.PlayerHeld){try{ReleasePlayer(transaction);}catch(Exception error){debug("fast path player release pending: "+error.Message);}}
    for(int index=transaction.Sources.Count-1;index>=0;index--){var held=transaction.Sources[index];if(!held.Applied)continue;
+    string description=held.Source.DebitDescription;
     try {
-     if(!FenceMatches(held)){WarnDebit(held.Source.Key,held.Source.DebitDescription);held.Applied=false;Release(held);continue;}
-     Mutate(held,true);Release(held);
-    }catch(Exception error){debug("fast path compensation pending key="+held.Source.Key+": "+error.Message);}
+     if(!FenceMatches(held)){WarnDebit(held.Source.Key,description);held.Applied=false;}
+     else Mutate(held,true);
+    }catch(FastPathPermanentRestoreException){WarnDebit(held.Source.Key,description);held.Applied=false;}
+    catch(Exception error){debug("fast path compensation pending key="+held.Source.Key+": "+error.Message);}
+    if(!held.Applied){try{Release(held);}catch(Exception error){debug("fast path release pending key="+held.Source.Key+": "+error.Message);}}
    }
    if(transaction.PlayerApplied||transaction.Sources.Any(held=>held.Applied))return;
    transaction.Compensating=false;transaction.Cleaning=true;Cleanup(transaction);
   }
   void Release(HeldSource held){if(held.Released)return;held.Source.ReleaseHold();held.Released=true;}
+  void ReleasePlayer(Transaction transaction){if(!transaction.PlayerHeld)return;transaction.Player.ReleaseHold();transaction.PlayerHeld=false;}
   void Cleanup(Transaction transaction){
    foreach(var held in transaction.Sources.Where(held=>!held.Released)){
     try{Release(held);}catch(Exception error){debug("fast path release pending key="+held.Source.Key+": "+error.Message);}
    }
    if(transaction.Sources.Any(held=>!held.Released))return;
-   if(transaction.PlayerHeld){try{transaction.Player.ReleaseHold();transaction.PlayerHeld=false;}catch(Exception error){debug("fast path player release pending: "+error.Message);return;}}
+   try{ReleasePlayer(transaction);}catch(Exception error){debug("fast path player release pending: "+error.Message);return;}
    current=null;
   }
   internal void Tick(){if(current==null)return;if(current.Compensating)Compensate(current);else if(current.Cleaning)Cleanup(current);}

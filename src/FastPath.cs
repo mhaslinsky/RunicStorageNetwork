@@ -16,6 +16,7 @@ namespace RunicStorageNetwork {
    internal override bool IsValid=>Data.IsValid()&&Container&&Inventory!=null;
    internal override byte[] Bytes=>InventoryBytes(Inventory);
    internal override string DebitDescription=>Unrestored;
+   internal override bool RestoreComplete=>Delta.Parts.All(part=>part.Removed==0);
    internal override void AcquireHold(){
     if(!IsValid||Holds(Data)||heldInventories.ContainsKey(Inventory))throw new FastPathFenceException("source became reserved: "+SourceKey);
     Order=InventoryOrder(Inventory);heldSources.Add(Data.m_uid,this);heldInventories.Add(Inventory,this);Held=true;Integrations.Block(Inventory,true);R.Set(Container,"m_inUse",true);
@@ -33,6 +34,7 @@ namespace RunicStorageNetwork {
    internal Player Value;internal ItemDrop.ItemData Tool;internal InventoryDelta Delta;internal int[] Order;
    internal override byte[] Bytes=>InventoryBytes(Value.GetInventory());
    internal override string DebitDescription=>DebitDescriptionOf(Delta);
+   internal override bool RestoreComplete=>Delta.Parts.All(part=>part.Removed==0);
    internal override void AcquireHold(){Order=InventoryOrder(Value.GetInventory());lockedPlayerInventory=Value.GetInventory();lockedTool=Tool;}
    internal override void ApplyDebit(){Transport.InternalMutation++;try{Delta.Apply();}finally{Transport.InternalMutation--;}}
    internal override void RestoreDebit(){Transport.InternalMutation++;try{Delta.Restore();RestoreInventoryOrder(Value.GetInventory(),Order);}finally{Transport.InternalMutation--;}}
