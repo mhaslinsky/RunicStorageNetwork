@@ -26,8 +26,8 @@ namespace RunicStorageNetwork {
    internal override void RestoreDebit(){
     Transport.InternalMutation++;try{Delta.Restore();RestoreInventoryOrder(Inventory,Order);}finally{Transport.InternalMutation--;}
    }
-   // Integration failures must not leave local holds behind.
-   internal override void ReleaseHold(){if(!Held)return;try{Integrations.Block(Inventory,false);}finally{try{if(Container)R.Set(Container,"m_inUse",false);}finally{DropHold();}}}
+   // Keep the hold until integration unblocking succeeds so later frames can retry.
+   internal override void ReleaseHold(){if(!Held)return;Integrations.Block(Inventory,false);try{if(Container)R.Set(Container,"m_inUse",false);}finally{DropHold();}}
    void DropHold(){heldInventories.Remove(Inventory);heldSources.Remove(Data.m_uid);Held=false;}
    internal override void ClearHold(){if(!Held)return;try{Integrations.Block(Inventory,false);}finally{try{if(Container)R.Set(Container,"m_inUse",false);}finally{DropHold();}}}
   }
