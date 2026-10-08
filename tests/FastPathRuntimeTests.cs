@@ -90,7 +90,7 @@ static class FastPathRuntimeTests {
  static void Prepare(RuntimePlayer player,params RuntimeChest[] chests){player.Prepare();foreach(var chest in chests)chest.Prepare();}
  static bool Build(FastPathCore engine,RuntimePlayer player,params RuntimeChest[] chests){Prepare(player,chests);return engine.TryBuild(player,chests,player.Place,player.Finish,()=>player.Outputs>0);}
  static void Released(FastPathCore engine,RuntimePlayer player,params RuntimeChest[] chests){Check(!engine.Running&&!engine.Blocks(player)&&!engine.Active&&!player.Held&&!player.ToolLocked,"player state remained");foreach(var chest in chests)Check(!chest.Held&&!chest.InUse&&!chest.IntegrationBlocked,"chest hold remained: "+chest.Name);}
- static FastPathSourceState Eligible()=>new FastPathSourceState{Valid=true,SceneOwner=true,Owner=1,LocalOwner=1,Access=true};
+ static FastPathSourceState Eligible()=>new FastPathSourceState{Valid=true,SceneOwner=true,Owner=1,LocalOwner=1,Access=true,Fresh=true};
  static int Main(){
   Test("build entry preserves other players and ordinary flow","guards apply only to the transaction's player",()=>{
    Check(FastPathCore.BuildEntry(false,false,false,false)==FastPathBuildEntry.Continue,"ordinary flow blocked");
@@ -117,6 +117,7 @@ static class FastPathRuntimeTests {
    foreach(var change in changes){var state=Eligible();change(state);Check(!FastPathCore.SourceEligible(state),"unsafe source allowed");}
    Check(!FastPathCore.SourceEligible(null),"missing source allowed");
   });
+  Test("stale source falls back","a source must reload current saved contents before its stock is used",()=>{var state=Eligible();state.Fresh=false;Check(FastPathCore.SourceCanReload(state),"otherwise safe source refused");Check(!FastPathCore.SourceEligible(state),"stale source allowed");});
   Test("player eligibility falls back","feature off and player or tool locks never enter the fast path",()=>{
    Check(FastPathCore.PlayerEligible(true,true,false,false,false,false,false,false),"eligible player refused");
    for(int index=0;index<8;index++){var flags=new[]{true,true,false,false,false,false,false,false};flags[index]=!flags[index];Check(!FastPathCore.PlayerEligible(flags[0],flags[1],flags[2],flags[3],flags[4],flags[5],flags[6],flags[7]),"unsafe player flag allowed: "+index);}

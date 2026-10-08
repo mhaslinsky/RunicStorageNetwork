@@ -11,7 +11,7 @@ namespace RunicStorageNetwork {
   internal FastPathPermanentRestoreException(string message,Exception inner=null):base(message,inner){}
  }
  internal sealed class FastPathSourceState {
-  internal bool Valid,SceneOwner,Replica,Access,InUse,NetworkInUse,Locked,Reserved,Busy,Held;
+  internal bool Valid,SceneOwner,Replica,Access,InUse,NetworkInUse,Locked,Reserved,Busy,Held,Fresh;
   internal long Owner,LocalOwner;
  }
  internal abstract class FastPathCoreSource {
@@ -75,7 +75,8 @@ namespace RunicStorageNetwork {
    return FastPathBuildEntry.Continue;
   }
   internal static bool AllowOriginalBuild(bool contentAllowed,bool entryAllowed)=>contentAllowed&&entryAllowed;
-  internal static bool SourceEligible(FastPathSourceState source)=>source!=null&&source.Valid&&source.SceneOwner&&source.Owner==source.LocalOwner&&source.Access&&!source.Replica&&!source.InUse&&!source.NetworkInUse&&!source.Locked&&!source.Reserved&&!source.Busy&&!source.Held;
+  internal static bool SourceCanReload(FastPathSourceState source)=>source!=null&&source.Valid&&source.SceneOwner&&source.Owner==source.LocalOwner&&source.Access&&!source.Replica&&!source.InUse&&!source.NetworkInUse&&!source.Locked&&!source.Reserved&&!source.Busy&&!source.Held;
+  internal static bool SourceEligible(FastPathSourceState source)=>SourceCanReload(source)&&source.Fresh;
   internal static bool PlayerEligible(bool enabled,bool local,bool carried,bool inventoryLocked,bool toolLocked,bool waiting,bool active,bool running)=>enabled&&local&&!carried&&!inventoryLocked&&!toolLocked&&!waiting&&!active&&!running;
   internal static bool PlanSourcesMatch(IEnumerable<string> selected,IEnumerable<string> actual){
    if(selected==null||actual==null)return false;

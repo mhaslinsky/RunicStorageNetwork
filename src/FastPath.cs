@@ -86,6 +86,8 @@ namespace RunicStorageNetwork {
     var container=core.Pool.FirstOrDefault(candidate=>candidate&&R.Valid(R.View(candidate))&&R.Key(R.View(candidate).GetZDO().m_uid)==key);
     var view=R.View(container);if(!container||!R.Valid(view))return false;var data=view.GetZDO();var inventory=container.GetInventory();
     var state=new FastPathSourceState{Valid=data.IsValid()&&inventory!=null,SceneOwner=view.IsOwner(),Owner=data.GetOwner(),LocalOwner=ZNet.GetUID(),Replica=container.GetComponent<UnloadedReplica>(),Access=Access.Container(container,player.GetPlayerID(),core,out _,ownLease:false),InUse=container.IsInUse(),NetworkInUse=data.GetInt(ZDOVars.s_inUse)!=0,Locked=Transport.Locked(inventory),Reserved=Transport.Reserved(data),Busy=Integrations.IsBusy(inventory),Held=Holds(data)};
+    if(!FastPathCore.SourceCanReload(state))return false;
+    state.Fresh=UnloadedNetworks.LoadForRead(container)&&R.Get<uint>(container,"m_lastRevision")==data.DataRevision;
     if(!FastPathCore.SourceEligible(state))return false;
     stock.AddRange(GatewayRuntime.Local(core,player.GetPlayerID(),container,Stockroom.Snapshot(inventory,key,operation.Needs,true)));byKey.Add(key,container);
    }
