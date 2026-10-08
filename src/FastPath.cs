@@ -7,7 +7,7 @@ using RunicStorageNetwork.Logic;
 namespace RunicStorageNetwork {
  internal static class FastPath {
   sealed class Source:FastPathCoreSource {
-   internal string SourceKey,Unrestored="";internal Container Container;internal Inventory Inventory;internal ZDO Data;internal long InitialOwner;internal InventoryDelta Delta;
+   internal string SourceKey;internal Container Container;internal Inventory Inventory;internal ZDO Data;internal long InitialOwner;internal InventoryDelta Delta;
    internal bool Held;internal int[] Order;
    internal override string Key=>SourceKey;
    internal override long Owner=>InitialOwner;
@@ -15,16 +15,16 @@ namespace RunicStorageNetwork {
    internal override uint Revision=>Data.DataRevision;
    internal override bool IsValid=>Data.IsValid()&&Container&&Inventory!=null;
    internal override byte[] Bytes=>InventoryBytes(Inventory);
-   internal override string DebitDescription=>Unrestored;
+   internal override string DebitDescription=>DebitDescriptionOf(Delta);
    internal override bool RestoreComplete=>Delta.Parts.All(part=>part.Removed==0);
    internal override void AcquireHold(){
     if(!IsValid||Holds(Data)||heldInventories.ContainsKey(Inventory))throw new FastPathFenceException("source became reserved: "+SourceKey);
     Order=InventoryOrder(Inventory);heldSources.Add(Data.m_uid,this);heldInventories.Add(Inventory,this);Held=true;Integrations.Block(Inventory,true);R.Set(Container,"m_inUse",true);
    }
-   internal override void ApplyDebit(){Transport.InternalMutation++;try{Delta.Apply();}finally{Unrestored=DebitDescriptionOf(Delta);Transport.InternalMutation--;}}
-   internal override void Save(){Transport.InternalMutation++;try{R.Call(Container,"Save");if(!Delta.Applied)Unrestored="";}finally{Transport.InternalMutation--;}}
+   internal override void ApplyDebit(){Transport.InternalMutation++;try{Delta.Apply();}finally{Transport.InternalMutation--;}}
+   internal override void Save(){Transport.InternalMutation++;try{R.Call(Container,"Save");}finally{Transport.InternalMutation--;}}
    internal override void RestoreDebit(){
-    Transport.InternalMutation++;try{Delta.Restore();RestoreInventoryOrder(Inventory,Order);}finally{string remaining=DebitDescriptionOf(Delta);if(remaining.Length>0)Unrestored=remaining;Transport.InternalMutation--;}
+    Transport.InternalMutation++;try{Delta.Restore();RestoreInventoryOrder(Inventory,Order);}finally{Transport.InternalMutation--;}
    }
    internal override void ReleaseHold(){if(!Held)return;Integrations.Block(Inventory,false);R.Set(Container,"m_inUse",false);DropHold();}
    void DropHold(){heldInventories.Remove(Inventory);heldSources.Remove(Data.m_uid);Held=false;}

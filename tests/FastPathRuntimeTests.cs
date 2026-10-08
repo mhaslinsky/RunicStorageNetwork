@@ -46,8 +46,8 @@ sealed class RuntimeDelta {
 }
 sealed class RuntimePlayer:FastPathCorePlayer {
  internal readonly RuntimeInventory Inventory=new RuntimeInventory();internal readonly Dictionary<string,int> Debits;
- internal RuntimeDelta Delta;internal int[] Order;internal bool Held,ToolLocked,PlacementRefused,ThrowAfterOutput,FailFinish,FailOrderAfterRestore,CorruptAfterRestore;
- internal int Outputs,Costs,Stamina=100,Skill,Debt,Durability=100,LastUse,Effects,Restores;
+ internal RuntimeDelta Delta;internal int[] Order;internal bool Held,ToolLocked,PlacementRefused,ThrowAfterOutput,FailFinish,FailOrderAfterRestore,CorruptAfterRestore,FailRelease;
+ internal int Outputs,Costs,Stamina=100,Skill,Debt,Durability=100,LastUse,Effects,Restores;internal Action AfterRestore;
  internal RuntimePlayer(Dictionary<string,int> debits){Debits=debits;}
  internal void Prepare(){Delta=new RuntimeDelta(Inventory,Debits);}
  internal override byte[] Bytes=>Inventory.Bytes();
@@ -55,8 +55,8 @@ sealed class RuntimePlayer:FastPathCorePlayer {
  internal override bool RestoreComplete=>Delta.RestoreComplete;
  internal override void AcquireHold(){Order=Inventory.Items.Select(item=>item.Slot).ToArray();Held=true;ToolLocked=true;}
  internal override void ApplyDebit()=>Delta.Apply();
- internal override void RestoreDebit(){Restores++;Delta.Restore();if(FailOrderAfterRestore)Inventory.Items[0].Slot++;var restored=FastPathCore.RestoreOrder(Inventory.Items,Order,item=>item.Slot);Inventory.Items.Clear();Inventory.Items.AddRange(restored);Inventory.Changed();if(CorruptAfterRestore)Inventory.Items[0].Metadata="changed-after-restore";}
- internal override void ReleaseHold(){Held=false;ToolLocked=false;}
+ internal override void RestoreDebit(){Restores++;Delta.Restore();AfterRestore?.Invoke();if(FailOrderAfterRestore)Inventory.Items[0].Slot++;var restored=FastPathCore.RestoreOrder(Inventory.Items,Order,item=>item.Slot);Inventory.Items.Clear();Inventory.Items.AddRange(restored);Inventory.Changed();if(CorruptAfterRestore)Inventory.Items[0].Metadata="changed-after-restore";}
+ internal override void ReleaseHold(){if(FailRelease)throw new InvalidOperationException("player unblock refused");Held=false;ToolLocked=false;}
  internal override void ClearHold()=>ReleaseHold();
  internal bool Place(){if(PlacementRefused)return false;Outputs++;if(ThrowAfterOutput)throw new InvalidOperationException("placement callback failed after output");return true;}
  internal void Finish(){Costs++;Stamina-=5;if(Debt>0)Debt--;else Skill++;Durability-=2;LastUse=42;Effects++;if(FailFinish)throw new InvalidOperationException("build effect failed");}
@@ -65,14 +65,14 @@ sealed class RuntimeChest:FastPathCoreSource {
  internal readonly string Name;internal readonly RuntimeInventory Inventory=new RuntimeInventory();internal readonly Dictionary<string,int> Debits;
  internal RuntimeDelta Delta;internal int[] Order;internal byte[] Stored;
  internal long OwnerId=1;internal uint RevisionId;internal bool InUse,IntegrationBlocked,Held,Valid=true,FailSaveBefore,FailSaveAfter,FailRelease,FailOrderAfterRestore,CorruptAfterRestore;
- internal int Saves,Releases,ForcedReleases,Restores;internal string Unrestored="";
- internal Action OnApply,OnSave;internal RuntimeChest(string name,Dictionary<string,int> debits){Name=name;Debits=debits;Inventory.OnChanged=()=>{if(OwnerId==1)Save();};}
+ internal int Saves,Releases,ForcedReleases,Restores;
+ internal Action OnApply,OnSave,AfterRestore;internal RuntimeChest(string name,Dictionary<string,int> debits){Name=name;Debits=debits;Inventory.OnChanged=()=>{if(OwnerId==1)Save();};}
  internal void Prepare(){Stored=Inventory.Bytes();Delta=new RuntimeDelta(Inventory,Debits);}
- internal override string Key=>Name;internal override long Owner=>1;internal override long CurrentOwner=>OwnerId;internal override uint Revision=>RevisionId;internal override bool IsValid=>Valid;internal override byte[] Bytes=>Inventory.Bytes();internal override string DebitDescription=>Unrestored;internal override bool RestoreComplete=>Delta.RestoreComplete;
+ internal override string Key=>Name;internal override long Owner=>1;internal override long CurrentOwner=>OwnerId;internal override uint Revision=>RevisionId;internal override bool IsValid=>Valid;internal override byte[] Bytes=>Inventory.Bytes();internal override string DebitDescription=>Delta.Description;internal override bool RestoreComplete=>Delta.RestoreComplete;
  internal override void AcquireHold(){Order=Inventory.Items.Select(item=>item.Slot).ToArray();Held=true;InUse=true;IntegrationBlocked=true;}
- internal override void ApplyDebit(){try{OnApply?.Invoke();Delta.Apply();}finally{Unrestored=Delta.Description;}}
- internal override void Save(){Saves++;OnSave?.Invoke();if(FailSaveBefore)throw new InvalidOperationException("save refused before write");var bytes=Inventory.Bytes();if(!bytes.SequenceEqual(Stored)){Stored=bytes;RevisionId++;}if(FailSaveAfter)throw new InvalidOperationException("save refused after write");if(Delta!=null&&!Delta.Applied)Unrestored="";}
- internal override void RestoreDebit(){Restores++;try{Delta.Restore();if(FailOrderAfterRestore)Inventory.Items[0].Slot++;var restored=FastPathCore.RestoreOrder(Inventory.Items,Order,item=>item.Slot);Inventory.Items.Clear();Inventory.Items.AddRange(restored);Inventory.Changed();if(CorruptAfterRestore)Inventory.Items[0].Metadata="changed-after-restore";}finally{string remaining=Delta.Description;if(remaining.Length>0)Unrestored=remaining;}}
+ internal override void ApplyDebit(){OnApply?.Invoke();Delta.Apply();}
+ internal override void Save(){Saves++;OnSave?.Invoke();if(FailSaveBefore)throw new InvalidOperationException("save refused before write");var bytes=Inventory.Bytes();if(!bytes.SequenceEqual(Stored)){Stored=bytes;RevisionId++;}if(FailSaveAfter)throw new InvalidOperationException("save refused after write");}
+ internal override void RestoreDebit(){Restores++;Delta.Restore();AfterRestore?.Invoke();if(FailOrderAfterRestore)Inventory.Items[0].Slot++;var restored=FastPathCore.RestoreOrder(Inventory.Items,Order,item=>item.Slot);Inventory.Items.Clear();Inventory.Items.AddRange(restored);Inventory.Changed();if(CorruptAfterRestore)Inventory.Items[0].Metadata="changed-after-restore";}
  internal override void ReleaseHold(){Releases++;if(FailRelease)throw new InvalidOperationException("integration unblock refused");DropHold();}
  void DropHold(){Held=false;InUse=false;IntegrationBlocked=false;}
  internal override void ClearHold(){ForcedReleases++;try{ReleaseHold();}finally{DropHold();}}
@@ -169,11 +169,11 @@ static class FastPathRuntimeTests {
    if(mismatch=="owner")first.OwnerId=2;else if(mismatch=="revision")first.RevisionId++;else if(mismatch=="bytes")first.Inventory.Items.Add(Item("Iron",1,0,"external"));else first.Valid=false;
    var external=first.Bytes;int saves=first.Saves,adds=first.Inventory.Adds;second.Inventory.FailAdd=false;engine.Tick();
    Check(first.Bytes.SequenceEqual(external)&&first.Saves==saves&&first.Inventory.Adds==adds,"mismatch wrote to source");Check(second.Bytes.SequenceEqual(secondBefore),"other source not restored");
-   Check(warnings.Count(message=>message=="fast path debit unrestored key=first items=Wood=3")==1,"debit warning missing or wrong");Released(engine,player,first,second);
+   Check(warnings.SequenceEqual(new[]{"fast path debit unrestored key=first items=Wood=3"}),"debit warning missing or wrong");Released(engine,player,first,second);
   });
   Test("world clear logs each debit despite release exception","multiple sources and player leave no hold, lock or block",()=>{
    var player=Player(Debit("Wood",2));player.PlacementRefused=true;player.Inventory.FailAdd=true;var first=Chest("first",3,3);first.Inventory.FailAdd=true;first.FailRelease=true;var second=Chest("second",3,3);second.Inventory.FailAdd=true;var engine=Engine();Build(engine,player,first,second);Check(engine.Compensating,"no compensation to clear");engine.Clear();
-   foreach(string key in new[]{"first","second","player"})Check(warnings.Any(message=>message.Contains("key="+key+" items=Wood=")),"world debit warning missing: "+key);
+   Check(warnings.SequenceEqual(new[]{"fast path debit unrestored key=first items=Wood=3","fast path debit unrestored key=second items=Wood=3","fast path debit unrestored key=player items=Wood=2","fast path world hold cleanup failed key=first: integration unblock refused"}),"world debit warnings wrong");
    Check(warnings.Any(message=>message.Contains("world hold cleanup failed key=first"))&&first.ForcedReleases==1&&second.ForcedReleases==1,"release failure not handled");Released(engine,player,first,second);engine.Clear();Released(engine,player,first,second);
   });
   Test("compensation keeps its source hold","the core keeps a failed restore pending and blocks the owning player",()=>{
@@ -205,18 +205,37 @@ static class FastPathRuntimeTests {
   Test("reduced stock is visible after debit","a coordinated reader cannot spend the pre-debit stock",()=>{var player=Player();var chest=Chest("one");var engine=Engine();Prepare(player,chest);bool observed=false;engine.TryBuild(player,new[]{chest},()=>{observed=true;Check(chest.Inventory.Count("Wood")==1&&chest.Stored.SequenceEqual(chest.Bytes),"debit not visible to reader");return player.Place();},player.Finish);Check(observed&&player.Outputs==1,"reader callback not reached");Released(engine,player,chest);});
   foreach(bool order in new[]{false,true})Test("source restore "+(order?"order":"bytes")+" mismatch ends compensation","a completed delta with a permanent mismatch warns once and never restores again",()=>{
    var player=Player();player.PlacementRefused=true;var chest=Chest("one");chest.FailOrderAfterRestore=order;chest.CorruptAfterRestore=!order;var engine=Engine();Build(engine,player,chest);
-   Check(chest.RestoreComplete&&warnings.Count(message=>message=="fast path debit unrestored key=one items=Wood=3")==1,"mismatch warning missing");Released(engine,player,chest);int restores=chest.Restores;engine.Tick();Check(chest.Restores==restores&&warnings.Count==1,"permanent mismatch retried");
+   Check(chest.RestoreComplete&&warnings.SequenceEqual(new[]{"fast path restore mismatch key=one"}),"mismatch warning missing");Released(engine,player,chest);int restores=chest.Restores;engine.Tick();Check(chest.Restores==restores&&warnings.Count==1,"permanent mismatch retried");
   });
   foreach(bool order in new[]{false,true})Test("player restore "+(order?"order":"bytes")+" mismatch ends compensation","a completed player delta releases the hold and warns once",()=>{
    var player=Player(Debit("Wood",2));player.PlacementRefused=true;player.FailOrderAfterRestore=order;player.CorruptAfterRestore=!order;var chest=Chest("one");var engine=Engine();Build(engine,player,chest);
-   Check(player.RestoreComplete&&warnings.Count(message=>message=="fast path debit unrestored key=player items=Wood=2")==1,"player warning missing");Released(engine,player,chest);int restores=player.Restores;engine.Tick();Check(player.Restores==restores&&warnings.Count==1,"player mismatch retried");
+   Check(player.RestoreComplete&&warnings.SequenceEqual(new[]{"fast path restore mismatch key=player"}),"player warning missing");Released(engine,player,chest);int restores=player.Restores;engine.Tick();Check(player.Restores==restores&&warnings.Count==1,"player mismatch retried");
   });
-  Test("empty player debit releases after mismatch","a player with no contribution has no unrestored amount to warn about",()=>{
-   var player=Player();player.PlacementRefused=true;player.CorruptAfterRestore=true;var chest=Chest("one");var engine=Engine();Build(engine,player,chest);Check(warnings.Count==0,"empty debit warning emitted");Released(engine,player,chest);
+  Test("empty player debit releases after mismatch","an empty remaining debit reports the inventory mismatch",()=>{
+   var player=Player();player.PlacementRefused=true;player.CorruptAfterRestore=true;var chest=Chest("one");var engine=Engine();Build(engine,player,chest);Check(warnings.SequenceEqual(new[]{"fast path restore mismatch key=player"}),"empty debit mismatch warning missing");Released(engine,player,chest);
   });
   Test("player AddItem retry restores once","an incomplete player refund remains pending until the next successful restore",()=>{
    var player=Player(Debit("Wood",2));var before=player.Bytes;player.PlacementRefused=true;player.Inventory.FailAdd=true;var chest=Chest("one");var engine=Engine();Build(engine,player,chest);Check(engine.Compensating&&engine.Blocks(player)&&player.Held&&!chest.Held&&warnings.Count==0,"player retry did not remain held");player.Inventory.FailAdd=false;engine.Tick();Check(player.Bytes.SequenceEqual(before)&&player.Inventory.Count("Wood")==2,"player refund duplicated or lost");Released(engine,player,chest);
   });
+  foreach(bool playerSource in new[]{false,true})foreach(bool mismatch in new[]{false,true})Test((playerSource?"player":"source")+" duplicate slots "+(mismatch?"mismatch":"matching bytes"),"completed deltas finish according to bytes even if order restoration throws",()=>{
+   var player=Player(playerSource?Debit("Wood",1):null);player.PlacementRefused=true;var chest=Chest("one");var inventory=playerSource?player.Inventory:chest.Inventory;inventory.Items.Add(Item("Iron",1,inventory.Items[0].Slot,"duplicate"));
+   if(mismatch){Action corrupt=()=>inventory.Items[0].Metadata="changed";if(playerSource)player.AfterRestore=corrupt;else chest.AfterRestore=corrupt;}
+   var engine=Engine();Build(engine,player,chest);Check(player.RestoreComplete&&chest.RestoreComplete,"delta incomplete");Check(warnings.SequenceEqual(mismatch?new[]{"fast path restore mismatch key="+(playerSource?"player":"one")}:Array.Empty<string>()),"duplicate-slot warning wrong");Released(engine,player,chest);int restores=playerSource?player.Restores:chest.Restores;engine.Tick();Check((playerSource?player.Restores:chest.Restores)==restores,"duplicate-slot restore retried");
+  });
+  foreach(bool playerSource in new[]{false,true})Test((playerSource?"player":"source")+" complete restore throw keeps matching bytes","exception type does not repeat an already completed restore",()=>{
+   var player=Player(playerSource?Debit("Wood",1):null);player.PlacementRefused=true;var chest=Chest("one");Action fail=()=>throw new ArgumentException("after completed restore");if(playerSource)player.AfterRestore=fail;else chest.AfterRestore=fail;var engine=Engine();Build(engine,player,chest);Released(engine,player,chest);Check(warnings.Count==0,"matching restore warned");int restores=playerSource?player.Restores:chest.Restores;engine.Tick();Check((playerSource?player.Restores:chest.Restores)==restores,"completed restore retried");
+  });
+  foreach(string stage in new[]{"restore","save","release"})Test(stage+" retry warns once after later failure","three failed frames produce one source warning and retain the retry",()=>{
+   var player=Player();player.PlacementRefused=stage!="release";var chest=Chest("one",3,3);if(stage=="restore")chest.Inventory.FailAdd=true;else if(stage=="save")chest.FailSaveBefore=true;else chest.FailRelease=true;var engine=Engine();Build(engine,player,chest);Check(warnings.Count==0,"first attempt warned");int restores=chest.Restores;for(int frame=0;frame<3;frame++)engine.Tick();string error=stage=="restore"?"AddItem refused":stage=="save"?"save refused before write":"integration unblock refused";Check(warnings.SequenceEqual(new[]{"fast path "+stage+" pending key=one: "+error}),"pending warning wrong");if(stage=="save")Check(chest.Restores==restores,"save retry repeated restore");chest.Inventory.FailAdd=chest.FailSaveBefore=chest.FailRelease=false;engine.Tick();Released(engine,player,chest);
+  });
+  foreach(bool release in new[]{false,true})Test("player "+(release?"release":"restore")+" retry warns once","player retry errors name the player once across three frames",()=>{
+   var player=Player(Debit("Wood",2));player.PlacementRefused=true;player.Inventory.FailAdd=!release;player.FailRelease=release;var chest=Chest("one");var engine=Engine();Build(engine,player,chest);Check(warnings.Count==0,"initial player retry warned");for(int frame=0;frame<3;frame++)engine.Tick();Check(warnings.SequenceEqual(new[]{"fast path "+(release?"release":"restore")+" pending key=player: "+(release?"player unblock refused":"AddItem refused")}),"player pending warning wrong");player.Inventory.FailAdd=player.FailRelease=false;engine.Tick();Released(engine,player,chest);
+  });
+  Test("first later restore succeeds without warning","resolved transient failures do not warn",()=>{var player=Player();player.PlacementRefused=true;var chest=Chest("one",3,3);chest.Inventory.FailAdd=true;var engine=Engine();Build(engine,player,chest);chest.Inventory.FailAdd=false;engine.Tick();Check(warnings.Count==0,"resolved retry warned");Released(engine,player,chest);});
+  Test("empty remaining fence and world clear warn exactly once","abandonments report mismatches when the delta already returned its items",()=>{
+   foreach(bool clear in new[]{false,true}){warnings.Clear();var player=Player();var chest=Chest("one",3,3);chest.FailSaveBefore=true;var engine=Engine();Build(engine,player,chest);Check(chest.RestoreComplete&&engine.Compensating,"completed refund not waiting on save");if(clear)engine.Clear();else{chest.RevisionId++;engine.Tick();}Check(warnings.SequenceEqual(new[]{"fast path restore mismatch key=one"}),"empty remaining abandon warning wrong");Released(engine,player,chest);}
+  });
+  Test("player fence abandonment names remaining items","changed player bytes abandon only the missing contribution",()=>{var player=Player(Debit("Wood",2));player.PlacementRefused=true;player.Inventory.FailAdd=true;var chest=Chest("one");var engine=Engine();Build(engine,player,chest);player.Inventory.Items.Add(Item("Iron",1,0,"external"));engine.Tick();Check(warnings.SequenceEqual(new[]{"fast path debit unrestored key=player items=Wood=2"}),"player fence warning wrong");Released(engine,player,chest);});
   Console.WriteLine("RESULT "+passed+" fast path runtime tests passed; "+failed+" failed; production FastPathCore, game adapters are stand-ins.");return failed==0?0:1;
  }
 }
