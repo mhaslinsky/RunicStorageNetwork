@@ -42,7 +42,7 @@ namespace RunicStorageNetwork {
    internal override void ReleaseHold(){if(lockedPlayerInventory==Value.GetInventory())lockedPlayerInventory=null;if(lockedTool==Tool)lockedTool=null;}
    internal override void ClearHold(){lockedPlayerInventory=null;lockedTool=null;}
   }
-  sealed class Transaction {internal Actions.Pending Pending;internal PlayerAdapter Player;}
+  sealed class Transaction {internal PlayerAdapter Player;}
 
   static readonly Dictionary<Inventory,Source> heldInventories=new Dictionary<Inventory,Source>();
   static readonly Dictionary<ZDOID,Source> heldSources=new Dictionary<ZDOID,Source>();
@@ -59,17 +59,15 @@ namespace RunicStorageNetwork {
   internal static bool NativeReady(Player player)=>Owns(player)&&engine.NativeReady(current.Player);
   internal static bool ConsumeNativePlacement(Player player)=>Owns(player)&&engine.ConsumeNativePlacement(current.Player);
 
-  internal static bool TryBuild(Player player,Piece piece,Operation operation,Core core,List<Debit> preview){
-   List<Debit> plan;List<Source> sources;Actions.Pending pending;PlayerAdapter playerAdapter;
+  internal static bool TryBuild(Actions.Pending pending,Core core,List<Debit> preview){
+   List<Debit> plan;List<Source> sources;PlayerAdapter playerAdapter;
    try {
-    if(!Eligible(player,piece,operation,core,preview,out plan,out sources))return false;
-    pending=new Actions.Pending{Op=operation,Player=player,Piece=piece,Tool=(ItemDrop.ItemData)R.Call(player,"GetRightItem",Type.EmptyTypes)};
-    var ghost=R.Get<GameObject>(player,"m_placementGhost");pending.Position=ghost.transform.position;pending.Rotation=ghost.transform.rotation;
-    playerAdapter=new PlayerAdapter{Value=player,Tool=pending.Tool,Delta=new InventoryDelta(player.GetInventory(),plan.Where(debit=>debit.Source=="player"),false)};
+    if(!Eligible(pending,core,preview,out plan,out sources))return false;
+    playerAdapter=new PlayerAdapter{Value=pending.Player,Tool=pending.Tool,Delta=new InventoryDelta(pending.Player.GetInventory(),plan.Where(debit=>debit.Source=="player"),false)};
     foreach(var source in sources)source.Delta=new InventoryDelta(source.Inventory,plan.Where(debit=>debit.Source==source.SourceKey),true);
    }catch(Exception error){Plugin.Debug("fast path fallback: "+error.Message);return false;}
-   current=new Transaction{Pending=pending,Player=playerAdapter};
-   bool handled=engine.TryBuild(playerAdapter,sources.Cast<FastPathCoreSource>().ToList(),()=>player.TryPlacePiece(piece),()=>{
+   current=new Transaction{Player=playerAdapter};
+   bool handled=engine.TryBuild(playerAdapter,sources.Cast<FastPathCoreSource>().ToList(),()=>pending.Player.TryPlacePiece(pending.Piece),()=>{
     pending.Output=true;Transport.InternalMutation++;try{Actions.FinishBuild(pending);}finally{Transport.InternalMutation--;}
    },()=>pending.Output,placing=>Actions.Active=placing?pending:null);
    if(!engine.Running)current=null;
@@ -77,11 +75,11 @@ namespace RunicStorageNetwork {
    return handled;
   }
 
-  static bool Eligible(Player player,Piece piece,Operation operation,Core core,List<Debit> preview,out List<Debit> plan,out List<Source> sources){
+  static bool Eligible(Actions.Pending pending,Core core,List<Debit> preview,out List<Debit> plan,out List<Source> sources){
    plan=null;sources=null;
+   if(pending==null)return false;var player=pending.Player;var piece=pending.Piece;var operation=pending.Op;
    if(!player||!piece||operation==null||core==null||preview==null||!preview.Any(debit=>debit.Source!="player"&&debit.Amount>0))return false;
-   var tool=(ItemDrop.ItemData)R.Call(player,"GetRightItem",Type.EmptyTypes);
-   if(!FastPathCore.PlayerEligible(Plugin.OwnerFastPath!=null&&Plugin.OwnerFastPath.Value,player==Player.m_localPlayer,Actions.LocalBuildMaterials(player,piece,Player.RequirementMode.CanBuild),Transport.Locked(player.GetInventory()),Transport.LockedItem(tool),Actions.Waiting!=null,Actions.Active!=null,Running))return false;
+   if(!FastPathCore.PlayerEligible(enabled:Plugin.OwnerFastPath!=null&&Plugin.OwnerFastPath.Value,local:player==Player.m_localPlayer,carried:Actions.LocalBuildMaterials(player,piece,Player.RequirementMode.CanBuild),inventoryLocked:Transport.Locked(player.GetInventory()),toolLocked:Transport.LockedItem(pending.Tool),waiting:Actions.Waiting!=null,active:Actions.Active!=null,running:Running))return false;
    core.Scan();var selected=preview.Where(debit=>debit.Source!="player"&&debit.Amount>0).Select(debit=>debit.Source).Distinct(StringComparer.Ordinal).ToArray();var stock=Stockroom.Snapshot(player.GetInventory(),"player",operation.Needs,false);var byKey=new Dictionary<string,Container>(StringComparer.Ordinal);
    foreach(string key in selected){
     var container=core.Pool.FirstOrDefault(candidate=>candidate&&R.Valid(R.View(candidate))&&R.Key(R.View(candidate).GetZDO().m_uid)==key);

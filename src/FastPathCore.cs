@@ -75,7 +75,6 @@ namespace RunicStorageNetwork {
    if(running)return native?FastPathBuildEntry.Native:FastPathBuildEntry.Refuse;
    return FastPathBuildEntry.Continue;
   }
-  internal static bool AllowOriginalBuild(bool contentAllowed,bool entryAllowed)=>contentAllowed&&entryAllowed;
   internal static bool SourceCanReload(FastPathSourceState source)=>source!=null&&source.Valid&&source.SceneOwner&&source.Owner==source.LocalOwner&&source.Access&&!source.Replica&&!source.InUse&&!source.NetworkInUse&&!source.Locked&&!source.Reserved&&!source.Busy&&!source.Held;
   internal static bool SourceEligible(FastPathSourceState source)=>SourceCanReload(source)&&source.Fresh;
   internal static bool PlayerEligible(bool enabled,bool local,bool carried,bool inventoryLocked,bool toolLocked,bool waiting,bool active,bool running)=>enabled&&local&&!carried&&!inventoryLocked&&!toolLocked&&!waiting&&!active&&!running;
@@ -136,7 +135,7 @@ namespace RunicStorageNetwork {
   void CheckPlayer(Transaction transaction){if(!transaction.Player.Bytes.SequenceEqual(transaction.PlayerExpected))throw new FastPathFenceException("player contents changed");}
   void WarnDebit(string key,string description){warning(string.IsNullOrEmpty(description)?"fast path restore mismatch key="+key:"fast path debit unrestored key="+key+" items="+description);}
   static RestoreState Restored(bool complete,byte[] bytes,byte[] before)=>!complete?RestoreState.Pending:bytes.SequenceEqual(before)?RestoreState.Restored:RestoreState.Mismatch;
-  void Pending(string key,string stage,Exception error,ref bool warned){string message="fast path "+stage+" pending key="+key+": "+error.Message;if(ticking&&!warned){warned=true;warning(message);}else debug(message);}
+  void Pending(string key,string stage,Exception error,ref bool warned){string message="fast path "+stage+" pending key="+key+": "+error.Message;if((ticking||stage=="release")&&!warned){warned=true;warning(message);}else debug(message);}
   void Restore(HeldSource held){
    if(!held.Restored){
     Exception failure=null;try{held.Source.RestoreDebit();}catch(Exception error){failure=error;}finally{CaptureAfterMutation(held);}

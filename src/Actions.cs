@@ -75,7 +75,7 @@ namespace RunicStorageNetwork {
    if(R.Get<object>(p,"m_placementStatus").ToString()!="Valid")return true;
    var ghost=R.Get<GameObject>(p,"m_placementGhost");if(!ghost)return true;
    var pending=new Pending{Op=op,Player=p,Piece=piece,Tool=(ItemDrop.ItemData)R.Call(p,"GetRightItem",Type.EmptyTypes),Position=ghost.transform.position,Rotation=ghost.transform.rotation};
-   if(FastPath.TryBuild(p,piece,op,core,plan))return false;
+   if(FastPath.TryBuild(pending,core,plan))return false;
    Start(pending,plan);return false;
   }
   internal static Operation Create(Player p,Core core,bool build,string target,int quality,int multiplier){return new Operation{Id=System.Guid.NewGuid().ToString("N"),Target=target,Build=build,Quality=quality,Multiplier=multiplier,Actor=p.GetZDOID(),Station=build?ZDOID.None:R.View(p.GetCurrentCraftingStation()).GetZDO().m_uid,Core=core.Id,Network=core.GetComponent<NetworkMember>().SavedNetwork,Peer=ZNet.GetUID(),PlayerId=p.GetPlayerID()};}
