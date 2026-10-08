@@ -53,6 +53,7 @@ All distances are in metres. Larger radii can include more nodes and chests and 
 | Setting in `[Network]` | Default | Allowed values | Effect |
 | --- | --- | --- | --- |
 | `SupplyEnabled` | `true` | `true` / `false` | Enables network resource supply. Disabling it keeps the build pieces available, but stops new API payments as well. |
+| `OwnerFastPath` | `true` | `true` / `false` | Builds immediately when every needed chest is owned and loaded by the building client. Set `false` to use the coordinated path for all network builds. |
 | `StorageRadius` | `20` | `1`–`100` | Core-to-storage connection radius. |
 | `SupplyRadius` | `20` | `1`–`100` | Supply radius around a core for crafting, building and storage access. |
 | `RelayLinkRange` | `50` | `1`–`100` | Maximum distance for links between network nodes. |
@@ -61,6 +62,8 @@ All distances are in metres. Larger radii can include more nodes and chests and 
 | `RescanIntervalSeconds` | `2` | `0.5`–`30` | Interval for ordinary network topology rescans. It is not a timer for every inventory update or API request. |
 
 The Storage Codex uses the coverage of its core or relay; it does not extend it. No recipe changes are needed when changing ranges.
+
+`OwnerFastPath` is administrator-only and synchronized by the server. The fast path applies one fenced local debit, places the piece, and charges normal build costs once. Any chest that is busy, owned by another client, unloaded, filtered by a gateway, or reserved uses the coordinated path. If a local restore takes more than one frame, the chest remains in memory until it is safe to release.
 
 ## Containers
 

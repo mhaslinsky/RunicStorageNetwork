@@ -212,4 +212,15 @@ if($Tests){
  if($LASTEXITCODE -ne 0){throw 'Content runtime test compilation failed'}
  & $contentProbe
  if($LASTEXITCODE -ne 0){throw 'Content runtime tests failed'}
+ # Owner-local build transactions use a dedicated source list so the guarded
+ # stand-in fixture cannot be masked by the general tests glob.
+ $fastPathProbe=Join-Path $Output 'FastPathRuntimeTests.exe'
+ $fastPathRsp=Join-Path $Output 'FastPathRuntimeTests.rsp'
+ $fastPathLines=@('/nologo','/nostdlib+','/langversion:9','/target:exe','/define:FAST_PATH_RUNTIME_TESTS',('/out:"'+$fastPathProbe+'"'))
+ $fastPathLines+=@('src\FastPath.cs','tests\FastPathRuntimeTests.cs' | ForEach-Object {'"'+(Join-Path $root $_)+'"'})
+ [IO.File]::WriteAllLines($fastPathRsp,$fastPathLines)
+ & "$editor\NetCoreRuntime\dotnet.exe" "$editor\DotNetSdkRoslyn\csc.dll" "@$fastPathRsp"
+ if($LASTEXITCODE -ne 0){throw 'Fast path runtime test compilation failed'}
+ & $fastPathProbe
+ if($LASTEXITCODE -ne 0){throw 'Fast path runtime tests failed'}
 }
