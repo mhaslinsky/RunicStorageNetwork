@@ -217,6 +217,7 @@ if($Tests){
  $fastPathProbe=Join-Path $Output 'FastPathRuntimeTests.exe'
  $fastPathRsp=Join-Path $Output 'FastPathRuntimeTests.rsp'
  $fastPathLines=@('/nologo','/nostdlib+','/langversion:9','/target:exe','/define:FAST_PATH_RUNTIME_TESTS',('/out:"'+$fastPathProbe+'"'))
+ $fastPathLines+=@($refs | Select-Object -Unique | ForEach-Object {'/reference:"'+$_+'"'})
  $fastPathLines+=@('src\FastPathCore.cs','tests\FastPathRuntimeTests.cs' | ForEach-Object {'"'+(Join-Path $root $_)+'"'})
  [IO.File]::WriteAllLines($fastPathRsp,$fastPathLines)
  & "$editor\NetCoreRuntime\dotnet.exe" "$editor\DotNetSdkRoslyn\csc.dll" "@$fastPathRsp"

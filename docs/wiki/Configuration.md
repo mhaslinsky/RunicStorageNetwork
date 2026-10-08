@@ -63,9 +63,9 @@ All distances are in metres. Larger radii can include more nodes and chests and 
 
 The Storage Codex uses the coverage of its core or relay; it does not extend it. No recipe changes are needed when changing ranges.
 
-`OwnerFastPath` is administrator-only and synchronized by the server. The fast path applies one fenced local debit, places the piece, and charges normal build costs once. Any chest that is busy, owned by another client, unloaded, filtered by a gateway, or reserved uses the coordinated path. If a local restore takes more than one frame, the chest remains in memory until it is safe to release.
+`OwnerFastPath` is administrator-only and synchronized by the server. The fast path applies one fenced local debit, places the piece, and charges normal build costs once. Any chest that is busy, owned by another client, unloaded, filtered by a gateway, or reserved uses the coordinated path. If restoration or cleanup needs another frame, RSN holds the affected chests and blocks this player's builds until it can release them.
 
-If a permanent fence mismatch prevents a restore, RSN leaves that debit in place, releases the hold and logs the unrestored items.
+If ownership loss or a permanent inventory mismatch prevents restoration, RSN leaves that debit in place, releases the hold and logs the unrestored items. Leaving the world during restoration also logs each unrestored debit before clearing the holds.
 
 ## Containers
 
