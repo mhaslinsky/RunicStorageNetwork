@@ -63,7 +63,7 @@ Interact with the Storage Codex inside core/relay supply coverage to open storag
 
 ## Immediate building gameplay checks
 
-Use a backed-up test world with `Network.OwnerFastPath = true`. These checks remain pending in game:
+Manual validation on a backed-up test world with `Network.OwnerFastPath = true`:
 
 - Have two players build from one chest at the same time, with one using immediate building and the other using normal network payment. Open the chest during a build, then change its owner. Check that no piece is free and no materials are removed twice.
 - Check remaining chest and player materials after both successful and refused placements, then save and reconnect to verify the counts persist.
