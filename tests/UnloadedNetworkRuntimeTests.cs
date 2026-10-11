@@ -52,17 +52,17 @@ static class ZoneSystem {public static Vector2s GetZone(Vector3 p)=>new Vector2s
 static class ZDOVars {public const int s_creator=1,s_enabled=2,s_permitted=3,s_items=4,s_inUse=5;}
 class ZDO {
  public ZDOID m_uid;public uint DataRevision;public ushort OwnerRevision;public long Owner=7,Creator=1,PlayerId=1;public int Schema=1,Prefab,InUse;public bool Valid=true,Guard;
- public string Network="network",BuilderBinding;public Vector3 Position;public byte[] Bytes=Array.Empty<byte>();
+ public string Network="network",BuilderBinding,Lease="";public Vector3 Position;public byte[] Bytes=Array.Empty<byte>();
  public bool IsValid()=>Valid;public int GetPrefab()=>Prefab;public Vector3 GetPosition()=>Position;public Quaternion GetRotation()=>new Quaternion();
  public long GetLong(int key,long fallback)=>Creator;public long GetLong(string key,long fallback)=>fallback;
  public int GetInt(string key,int fallback)=>Schema;public int GetInt(int key,int fallback)=>key==ZDOVars.s_inUse?InUse:0;
- public bool GetBool(int key,bool fallback)=>Guard;public string GetString(string key,string fallback)=>Network;
+ public bool GetBool(int key,bool fallback)=>Guard;public string GetString(string key,string fallback)=>key=="rsn_lease"?Lease:Network;
  public long GetOwner()=>Owner;public void SetOwner(long id){Owner=id;OwnerRevision++;}public byte[] GetByteArray(int key)=>Bytes;
  public void Set(int key,byte[] bytes){Bytes=bytes;DataRevision++;}
  public void Set(int key,int value){if(key==ZDOVars.s_inUse)InUse=value;DataRevision++;}
  public void IncreaseDataRevision(){}public void Deserialize(ZPackage p){}public void SetOwnerInternal(long owner){Owner=owner;}
 }
-class ZDOMan {public static ZDOMan instance;internal Dictionary<ZDOID,ZDO> m_objectsByID=new Dictionary<ZDOID,ZDO>();internal List<(long Peer,ZDOID Id)> Sent=new List<(long,ZDOID)>();public void ForceSendZDO(long peer,ZDOID id)=>Sent.Add((peer,id));public void ForceSendZDO(ZDOID id)=>Sent.Add((Transport.Server,id));public void AddToSector(ZDO z){}public void HandleDestroyedZDO(ZDOID id){HarmonyLib.Harmony.Prefix(typeof(ZDOMan),nameof(HandleDestroyedZDO),id);if(ZNetScene.instance.Live.TryGetValue(id,out var live)){live.GetComponent<ZNetView>().ResetZDO();ZNetScene.instance.Live.Remove(id);UnityEngine.Object.Destroy(live);}m_objectsByID.Remove(id);}public void RemovePeer(ZNetPeer peer){}}
+class ZDOMan {public static ZDOMan instance;internal Dictionary<ZDOID,ZDO> m_objectsByID=new Dictionary<ZDOID,ZDO>();internal List<(long Peer,ZDOID Id)> Sent=new List<(long,ZDOID)>();public void ForceSendZDO(long peer,ZDOID id)=>Sent.Add((peer,id));public void ForceSendZDO(ZDOID id)=>Sent.Add((Transport.Server,id));public void AddToSector(ZDO z){}public void HandleDestroyedZDO(ZDOID id){HarmonyLib.Harmony.Prefix(typeof(ZDOMan),nameof(HandleDestroyedZDO),id);if(ZNetScene.instance.Live.TryGetValue(id,out var live)){live.GetComponent<ZNetView>().ResetZDO();ZNetScene.instance.Live.Remove(id);UnityEngine.Object.Destroy(live);}m_objectsByID.Remove(id);}public void RemovePeer(ZNetPeer peer){}internal HashSet<long> Away=new HashSet<long>();bool IsInPeerActiveArea(Vector3 point,long uid)=>!Away.Contains(uid);}
 class ZNetPeer {public long m_uid;}
 class ZNet:UnityEngine.Object {public static ZNet instance;public static bool m_loadError;internal bool Server=true;internal HashSet<long> Peers=new HashSet<long>{17};public ZNetPeer GetPeer(long id)=>Peers.Contains(id)?new ZNetPeer{m_uid=id}:null;public bool IsServer()=>Server;public static long GetUID()=>instance.Server?7:17;public void Start(){}}
 class ZNetView:MonoBehaviour {internal ZDO m_zdo;public ZDO GetZDO()=>m_zdo;public bool IsOwner()=>m_zdo.Owner==ZNet.GetUID();public void Awake(){}public void ResetZDO(){HarmonyLib.Harmony.Prefix(typeof(ZNetView),nameof(ResetZDO),this);m_zdo=null;}}
@@ -106,13 +106,14 @@ namespace RunicStorageNetwork {
  static class OfflineInventory {internal static void Load(Inventory inv,byte[] bytes){if(bytes.Length==0)inv.RemoveAll();else inv.Load(new ZPackage(bytes));}}
  static class BuilderCodex {internal static string RemoteBinding(ZDO z)=>z?.BuilderBinding;}
  class ConfigEntry {public bool Value;}
- static class Plugin {internal const string Guid="local.runicstoragenetwork";internal static bool Healthy=true;internal static ConfigEntry ExperimentalUnloadedNetworks=new ConfigEntry();internal static List<string> Messages=new List<string>();internal static void Info(string s)=>Messages.Add(s);internal static void Error(string s,Exception e){Messages.Add(s+": "+e.Message);}}
+ static class Plugin {internal const string Guid="local.runicstoragenetwork";internal static bool Healthy=true;internal static ConfigEntry ExperimentalUnloadedNetworks=new ConfigEntry();internal static List<string> Messages=new List<string>();internal static void Info(string s)=>Messages.Add(s);internal static void Debug(string s)=>Messages.Add(s);internal static void Error(string s,Exception e){Messages.Add(s+": "+e.Message);}}
  class Core:MonoBehaviour {internal static HashSet<Core> Live=new HashSet<Core>();internal ZNetView view;internal void Detach(){Live.Remove(this);}}
  class NetworkMember:MonoBehaviour {internal const string NetworkKey="network",SchemaKey="schema";internal ZNetView View;internal bool Valid=>R.Valid(View);internal string Id=>R.Key(View.GetZDO().m_uid);internal string Network=>View.GetZDO().Network;}
  static class R {
   internal static T Get<T>(object o,string key)=>(T)o.GetType().GetField(key,BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Instance).GetValue(o);
   internal static void Set(object o,string key,object value)=>o.GetType().GetField(key,BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Instance).SetValue(o,value);
   internal static object Call(object o,string key)=>o.GetType().GetMethod(key,BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Instance).Invoke(o,null);
+  internal static object Call(object o,string key,Type[] types,params object[] args)=>o.GetType().GetMethod(key,BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Instance,null,types,null).Invoke(o,args);
   internal static ZNetView View(Component c)=>c?c.GetComponent<ZNetView>():null;
   internal static bool Valid(ZNetView v)=>v&&v.GetZDO()!=null&&v.GetZDO().IsValid();internal static string Key(ZDOID id)=>id.Id.ToString();
  }
@@ -213,6 +214,18 @@ static class UnloadedNetworkRuntimeTests {
   });
   Test("client adapters can display but never own or save remote inventory",()=>{Client();Deliver(core,chest);var c=UnloadedNetworks.FindContainer(chest.m_uid);Load(c);chest.Owner=ZNet.GetUID();Check(!UnloadedNetworks.CanOwn(c)&&Refuses(()=>Call("SaveReplica",c)),"client adapter wrote remote source");Check(c.GetInventory().Bytes.SequenceEqual(chest.Bytes),"display inventory missing");});
   Test("server never steals a chest from another live player",()=>{chest.Owner=17;Start();var c=Request();Load(c);Check(chest.Owner==17&&Refuses(()=>Call("SaveReplica",c))&&!UnloadedNetworks.KeepOwner(chest,0),"server stole peer inventory");});
+  Test("server claims a distant chest whose connected owner is away from it",()=>{chest.Owner=17;Start();Request();ZDOMan.instance.Away.Add(17);Check(UnloadedNetworks.ClaimStranded(chest)&&chest.Owner==7,"away owner kept distant chest");});
+  Test("network request claims an away owner's chest",()=>{chest.Owner=17;Start();ZDOMan.instance.Away.Add(17);Request();Check(chest.Owner==7,"request left away owner's chest stranded");});
+  Test("away owner keeps an open, leased or reserved chest",()=>{
+   chest.Owner=17;Start();var c=Request();ZDOMan.instance.Away.Add(17);
+   chest.InUse=1;Check(!UnloadedNetworks.ClaimStranded(chest)&&chest.Owner==17,"open chest claimed");chest.InUse=0;
+   chest.Lease="op";Check(!UnloadedNetworks.ClaimStranded(chest)&&chest.Owner==17,"leased chest claimed");chest.Lease="";
+   Transport.Leases[c.GetInventory()]=new Transport.Lease{Container=c};Check(!UnloadedNetworks.ClaimStranded(chest)&&chest.Owner==17,"reserved chest claimed");
+  });
+  Test("away claim needs unloaded networks on the server",()=>{
+   Plugin.ExperimentalUnloadedNetworks.Value=false;Call("Bootstrap");chest.Owner=17;ZDOMan.instance.Away.Add(17);Check(!UnloadedNetworks.ClaimStranded(chest)&&chest.Owner==17,"claimed without unloaded networks");
+   Setup();Client();ZNet.instance.Peers.Add(23);ZDOMan.instance.Away.Add(23);chest.Owner=23;Check(!UnloadedNetworks.ClaimStranded(chest)&&chest.Owner==23,"client claimed a chest");
+  });
   Test("server claims released source on demand after complete receipt",()=>{chest.Owner=17;Start();Request();chest.Owner=0;Call("OwnershipChanged",chest);Check(chest.Owner==0,"claimed during packet deserialization");UnloadedNetworks.Tick();Check(chest.Owner==7&&!UnloadedNetworks.KeepOwner(chest,17),"handoff to server or back to loaded client blocked");});
   Test("departed peer cannot leave an unreserved distant chest inaccessible",()=>{chest.Owner=17;Start();Request();chest.InUse=1;ZNet.instance.Peers.Clear();Call("Disconnected",new ZNetPeer{m_uid=17});UnloadedNetworks.Tick();Check(chest.Owner==7&&chest.InUse==0,"departed owner blocked storage");});
   Test("disconnect never discards an unresolved inventory reservation",()=>{chest.Owner=17;Start();var c=Request();Transport.Leases[c.GetInventory()]=new Transport.Lease{Container=c};ZNet.instance.Peers.Clear();Call("Disconnected",new ZNetPeer{m_uid=17});UnloadedNetworks.Tick();Check(chest.Owner==17,"lost-owner reservation bypassed");});

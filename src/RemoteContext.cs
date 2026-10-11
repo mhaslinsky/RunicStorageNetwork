@@ -185,6 +185,7 @@ namespace RunicStorageNetwork {
   }
   internal bool SourceAllowed(ZDO z,out string reason){
    reason="unloaded";var prefab=Prefab(z);if(!prefab||z.GetOwner()==0)return false;
+   UnloadedNetworks.ClaimStranded(z);
    // A non-zero owner may be no peer at all (a disconnected player, or a server mod
    // holding the chest under a synthetic id). Nobody would answer prepare or release.
    reason="owner unavailable";if(!LiveOwner(z.GetOwner())&&!ClaimDeparted(z))return false;

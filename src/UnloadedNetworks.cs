@@ -259,6 +259,17 @@ namespace RunicStorageNetwork {
    bool departed=owner!=0&&owner!=ZNet.GetUID()&&ZNet.instance.GetPeer(owner)==null;
    if(departed){z.SetOwner(ZNet.GetUID());z.Set(ZDOVars.s_inUse,0);}
    else if(owner==0&&z.GetInt(ZDOVars.s_inUse,0)==0)z.SetOwner(ZNet.GetUID());
+   else ClaimStranded(z);
+  }
+  // A connected owner keeps a distant chest after its zone unloads, then refuses every
+  // prepare because it has no instance (PER-142). Vanilla hands off a chest only when a
+  // player is near it, so a chest far from everyone is claimed here by the same rule.
+  internal static bool ClaimStranded(ZDO z){
+   if(!Enabled||!Authority||Transport.Reserved(z)||z.GetInt(ZDOVars.s_inUse,0)!=0||z.GetString("rsn_lease","")!="")return false;
+   long owner=z.GetOwner();if(owner==0||owner==ZNet.GetUID()||ZNet.instance.GetPeer(owner)==null)return false;
+   if((bool)R.Call(ZDOMan.instance,"IsInPeerActiveArea",new[]{typeof(Vector3),typeof(long)},z.GetPosition(),owner))return false;
+   Plugin.Debug("source owner away source="+R.Key(z.m_uid)+" owner="+owner+" claimed by server");
+   z.SetOwner(ZNet.GetUID());return true;
   }
   internal static void Import(ZDOID id){
    if(!Enabled||Authority)return;var z=RemoteContext.Data(id);if(z==null)return;
